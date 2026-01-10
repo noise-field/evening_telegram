@@ -142,17 +142,22 @@ async def run_evening_telegram(
     state_manager = StateManager(cfg.state.db_path)
     await state_manager.initialize()
 
-    # Determine time window
+    # Determine time window and processed messages based on mode
     since_timestamp = None
+    processed_ids: set[tuple[int, int]] = set()
+
     if cfg.state.mode == "since_last":
         last_run = await state_manager.get_last_successful_run()
         if last_run:
             since_timestamp = last_run[1]
             console.print(f"[dim]Running in incremental mode since {since_timestamp}[/dim]")
 
-    # Get already processed message IDs
-    processed_ids = await state_manager.get_processed_message_ids()
-    console.print(f"[dim]Found {len(processed_ids)} previously processed messages[/dim]")
+        # In since_last mode, skip already processed messages
+        processed_ids = await state_manager.get_processed_message_ids()
+        console.print(f"[dim]Found {len(processed_ids)} previously processed messages[/dim]")
+    else:
+        # In full mode, reprocess all messages in the time window
+        console.print(f"[dim]Running in full mode - will process all messages in lookback period[/dim]")
 
     # Start new run
     # Use timezone-aware datetimes to match Telegram timestamps
@@ -322,7 +327,7 @@ async def run_evening_telegram(
                     newspaper=newspaper,
                     bot_token=cfg.telegram.bot_token,
                     chat_id=cfg.telegram.report_chat_id,
-                    html_url=f"file://{html_path_str}" if html_path_str else None,
+                    html_path=html_path_str if html_path_str else None,
                 )
                 console.print("[green]Sent to Telegram[/green]")
 

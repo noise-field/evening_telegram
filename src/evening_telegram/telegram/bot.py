@@ -1,6 +1,7 @@
 """Telegram bot for sending reports."""
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 from telegram import Bot
@@ -15,7 +16,7 @@ async def send_telegram_report(
     newspaper: Newspaper,
     bot_token: str,
     chat_id: int,
-    html_url: Optional[str] = None,
+    html_path: Optional[str] = None,
 ) -> None:
     """
     Send newspaper summary to Telegram chat.
@@ -24,7 +25,7 @@ async def send_telegram_report(
         newspaper: Generated newspaper
         bot_token: Telegram bot token
         chat_id: Target chat ID
-        html_url: Optional URL to full HTML edition
+        html_path: Optional path to HTML file to attach
     """
     bot = Bot(token=bot_token)
 
@@ -53,24 +54,33 @@ async def send_telegram_report(
     message_parts.extend(
         [
             f"📊 {newspaper.total_articles} articles from {newspaper.total_channels} channels",
-            "",
         ]
     )
-
-    # Add HTML link if provided
-    if html_url:
-        message_parts.append(f'📖 <a href="{html_url}">Read full edition</a>')
 
     message_text = "\n".join(message_parts)
 
     try:
+        # Send the summary message
         await bot.send_message(
             chat_id=chat_id,
             text=message_text,
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
         )
-        logger.info(f"Successfully sent report to Telegram chat {chat_id}")
+        logger.info(f"Successfully sent report summary to Telegram chat {chat_id}")
+
+        # Send HTML file as document attachment if provided
+        if html_path and Path(html_path).exists():
+            filename = Path(html_path).name
+            with open(html_path, "rb") as html_file:
+                await bot.send_document(
+                    chat_id=chat_id,
+                    document=html_file,
+                    filename=filename,
+                    caption="📖 Full edition",
+                )
+            logger.info(f"Successfully sent HTML file to Telegram chat {chat_id}")
+
     except Exception as e:
         logger.error(f"Failed to send Telegram report: {e}")
         raise

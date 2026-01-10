@@ -45,7 +45,7 @@ class LLMClient:
             messages: List of message dicts with 'role' and 'content'
             temperature: Override default temperature
             max_tokens: Override default max tokens
-            json_mode: Whether to request JSON output
+            json_mode: Whether to request JSON output (only works with OpenAI-compatible APIs)
 
         Returns:
             Response content as string
@@ -57,7 +57,9 @@ class LLMClient:
             "max_tokens": max_tokens or self.config.max_tokens,
         }
 
-        if json_mode:
+        # Only add response_format for OpenAI models
+        # Anthropic's API doesn't support this parameter - just ask for JSON in the prompt
+        if json_mode and "gpt" in self.config.model.lower():
             kwargs["response_format"] = {"type": "json_object"}
 
         try:
@@ -97,6 +99,16 @@ class LLMClient:
             max_tokens=max_tokens,
             json_mode=True,
         )
+
+        # Strip markdown code blocks if present (common with Claude)
+        content = content.strip()
+        if content.startswith("```json"):
+            content = content[7:]  # Remove ```json
+        elif content.startswith("```"):
+            content = content[3:]  # Remove ```
+        if content.endswith("```"):
+            content = content[:-3]  # Remove trailing ```
+        content = content.strip()
 
         try:
             return json.loads(content)

@@ -1048,44 +1048,45 @@ The CSS should include:
 
 ### 6.2 Telegram Bot Delivery
 
-The bot should send a formatted message with:
+The bot should send two messages:
 
-1. **Summary header**: Edition name, date, period
-2. **Section summaries**: Brief list of top stories per section
-3. **Link to full HTML**: If hosted somewhere accessible
-4. **Inline navigation**: Deep links to sections if HTML is hosted
+1. **Summary message** with:
+   - Edition name, date, period
+   - Section summaries: Brief list of top stories per section
+   - Statistics footer
+
+2. **HTML file attachment**: The full HTML newspaper as a document attachment
 
 ```python
 async def send_telegram_report(
     newspaper: Newspaper,
     bot_token: str,
     chat_id: int,
-    html_url: Optional[str] = None
+    html_path: Optional[str] = None
 ):
     """
     Send newspaper summary to Telegram.
-    
-    Message format (using Telegram's HTML formatting):
-    
+
+    First message format (using Telegram's HTML formatting):
+
     📰 <b>The Evening Telegram</b>
     {edition_date}
-    
+
     <b>Top Stories:</b>
-    
+
     <b>Politics</b>
     • {headline_1}
     • {headline_2}
-    
+
     <b>Technology</b>
     • {headline_3}
-    
+
     ...
-    
+
     📊 {total_articles} articles from {total_channels} channels
-    
-    {if html_url}
-    📖 <a href="{html_url}">Read full edition</a>
-    {endif}
+
+    Then, if html_path is provided, send the HTML file as a document
+    attachment with caption "📖 Full edition"
     """
 ```
 
