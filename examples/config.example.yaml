@@ -1,0 +1,159 @@
+# Example configuration file for The Evening Telegram
+# Copy this to ~/.config/evening-telegram/config.yaml and customize
+
+# =============================================================================
+# TELEGRAM AUTHENTICATION
+# =============================================================================
+telegram:
+  # MTProto API credentials (from https://my.telegram.org/apps)
+  api_id: 12345678
+  api_hash: "your_api_hash_here"
+
+  # Phone number for the account (international format)
+  phone: "+1234567890"
+
+  # Session file location (stores auth session to avoid re-login)
+  session_file: "~/.config/evening-telegram/telegram.session"
+
+  # Bot token for sending reports (from @BotFather)
+  bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+
+  # Chat ID to send reports to (can be user ID, group ID, or channel)
+  # Use @userinfobot or similar to find your chat ID
+  report_chat_id: 123456789
+
+# =============================================================================
+# CHANNELS TO MONITOR
+# =============================================================================
+channels:
+  # List of channel usernames or IDs
+  # Supports both public (@username) and private (ID) channels
+  # For private channels, use the numeric ID (can be found via Telethon)
+  - "@example_news_channel"
+  - "@another_channel"
+  - -1001234567890  # Private channel by ID
+
+# =============================================================================
+# TIME PERIOD
+# =============================================================================
+period:
+  # How far back to look for messages
+  # Supported units: hours, days, weeks
+  lookback: "24 hours"
+
+  # Alternative: explicit time range (overrides lookback if both present)
+  # from: "2024-01-15T00:00:00"
+  # to: "2024-01-15T23:59:59"
+
+# =============================================================================
+# LLM CONFIGURATION
+# =============================================================================
+llm:
+  # OpenAI-compatible API endpoint
+  # Examples:
+  #   - OpenAI: https://api.openai.com/v1
+  #   - Anthropic (via proxy): https://your-proxy.com/v1
+  #   - Ollama: http://localhost:11434/v1
+  #   - Together.ai: https://api.together.xyz/v1
+  #   - OpenRouter: https://openrouter.ai/api/v1
+  base_url: "https://api.openai.com/v1"
+
+  # API key (can also be set via EVENING_TELEGRAM_LLM_API_KEY env var)
+  api_key: "sk-..."
+
+  # Model identifier
+  model: "gpt-4o"
+
+  # Temperature for generation (0.0 = deterministic, 1.0 = creative)
+  temperature: 0.3
+
+  # Maximum tokens per LLM call
+  max_tokens: 4096
+
+  # Request timeout in seconds
+  timeout: 120
+
+# =============================================================================
+# OUTPUT CONFIGURATION
+# =============================================================================
+output:
+  # Output language (ISO 639-1 code)
+  # The newspaper will be written in this language regardless of source language
+  language: "en"
+
+  # Newspaper name (appears in header)
+  newspaper_name: "The Evening Telegram"
+
+  # Tagline (appears under name)
+  tagline: "All the news that's fit to aggregate"
+
+  # HTML output file path
+  # Supports strftime formatting for date-based filenames
+  html_path: "~/evening-telegram/editions/%Y-%m-%d.html"
+
+  # Enable/disable output channels
+  save_html: true
+  send_telegram: true
+  send_email: false
+
+# =============================================================================
+# EMAIL CONFIGURATION (optional)
+# =============================================================================
+email:
+  # SMTP server settings
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  smtp_user: "your-email@gmail.com"
+  # Password (can also be set via EVENING_TELEGRAM_SMTP_PASSWORD env var)
+  smtp_password: "app-specific-password"
+
+  # Use TLS
+  use_tls: true
+
+  # Recipient(s)
+  to:
+    - "recipient@example.com"
+
+  # Sender address and name
+  from_address: "your-email@gmail.com"
+  from_name: "The Evening Telegram"
+
+# =============================================================================
+# PROCESSING OPTIONS
+# =============================================================================
+processing:
+  # Minimum number of sources required to consider a topic "significant"
+  # Topics mentioned by fewer sources may be grouped into "In Brief"
+  min_sources_for_article: 2
+
+  # Maximum messages to process per run (0 = unlimited)
+  # Useful for cost control during testing
+  max_messages: 0
+
+  # Include messages that are forwards from channels not in the watch list
+  include_external_forwards: true
+
+  # Batch size for LLM clustering (larger = fewer API calls, but longer prompts)
+  clustering_batch_size: 50
+
+# =============================================================================
+# STATE MANAGEMENT
+# =============================================================================
+state:
+  # SQLite database for tracking processed messages
+  db_path: "~/.config/evening-telegram/state.db"
+
+  # Run mode:
+  #   - "since_last": Only process messages since last successful run
+  #   - "full": Always process the full lookback period (may reprocess)
+  mode: "since_last"
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+
+  # Log file (optional, also logs to stderr)
+  file: "~/.config/evening-telegram/evening-telegram.log"
