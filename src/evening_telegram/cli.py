@@ -4,7 +4,7 @@ import asyncio
 import logging
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -56,15 +56,10 @@ def main(
     verbose: int,
 ) -> None:
     """The Evening Telegram - Generate a newspaper-style digest from Telegram channels."""
-    # Set up logging
-    log_level = logging.WARNING
-    if verbose == 1:
-        log_level = logging.INFO
-    elif verbose >= 2:
-        log_level = logging.DEBUG
-
+    # Configure root logger at WARNING to suppress third-party package logs
+    # This must be done early before any other logging happens
     logging.basicConfig(
-        level=log_level,
+        level=logging.WARNING,
         format="%(message)s",
         handlers=[RichHandler(console=console, rich_tracebacks=True)],
     )
@@ -93,7 +88,7 @@ def main(
 
     # Run the main async function
     try:
-        asyncio.run(run_evening_telegram(config, overrides, dry_run))
+        asyncio.run(run_evening_telegram(config, overrides, dry_run, verbose))
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted by user[/yellow]")
         sys.exit(1)
@@ -108,6 +103,7 @@ async def run_evening_telegram(
     config_path: Optional[Path],
     overrides: dict[str, Any],
     dry_run: bool,
+    verbose: int,
 ) -> None:
     """
     Main orchestration function for The Evening Telegram.
@@ -116,10 +112,31 @@ async def run_evening_telegram(
         config_path: Path to configuration file
         overrides: CLI overrides
         dry_run: Whether to skip output
+        verbose: Verbosity level from CLI
     """
     # Load configuration
     console.print("[bold]Loading configuration...[/bold]")
     cfg = load_config(config_path, overrides)
+
+    # Set application logging level based on CLI flags or config
+    log_level = logging.WARNING
+    if verbose == 1:
+        log_level = logging.INFO
+    elif verbose >= 2:
+        log_level = logging.DEBUG
+    elif cfg.logging:
+        # Use config file setting if no -v flags provided
+        level_map = {
+            "DEBUG": logging.DEBUG,
+            "INFO": logging.INFO,
+            "WARNING": logging.WARNING,
+            "ERROR": logging.ERROR,
+        }
+        log_level = level_map.get(cfg.logging.level.upper(), logging.INFO)
+
+    # Set our application's logger to the desired level
+    app_logger = logging.getLogger("evening_telegram")
+    app_logger.setLevel(log_level)
 
     # Initialize state manager
     state_manager = StateManager(cfg.state.db_path)
@@ -138,8 +155,9 @@ async def run_evening_telegram(
     console.print(f"[dim]Found {len(processed_ids)} previously processed messages[/dim]")
 
     # Start new run
-    period_start = since_timestamp or datetime.now()
-    period_end = datetime.now()
+    # Use timezone-aware datetimes to match Telegram timestamps
+    period_start = since_timestamp or datetime.now(timezone.utc)
+    period_end = datetime.now(timezone.utc)
     run_id = await state_manager.start_run(period_start, period_end)
 
     try:
@@ -267,7 +285,7 @@ async def run_evening_telegram(
             edition_id=str(uuid.uuid4()),
             title=cfg.output.newspaper_name,
             tagline=cfg.output.tagline,
-            edition_date=datetime.now(),
+            edition_date=datetime.now(timezone.utc),
             period_start=period_start,
             period_end=period_end,
             language=cfg.output.language,

@@ -2,7 +2,7 @@
 
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from dateutil import parser as date_parser
@@ -74,30 +74,46 @@ def _determine_time_window(
     since_timestamp: Optional[datetime],
 ) -> tuple[datetime, datetime]:
     """Determine the time window for message fetching."""
-    end_time = datetime.now()
+    # CRITICAL FIX: Use timezone-aware datetime to match Telegram message timestamps
+    end_time = datetime.now(timezone.utc)
 
     if since_timestamp is not None:
         start_time = since_timestamp
+        # Ensure it's timezone-aware
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
+        logger.debug(f"Using since_timestamp: {since_timestamp}")
     elif period_config.from_time and period_config.to_time:
         start_time = date_parser.parse(period_config.from_time)
         end_time = date_parser.parse(period_config.to_time)
+        # Ensure they're timezone-aware
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
+        logger.debug(f"Using explicit time range: {start_time} to {end_time}")
     else:
         lookback = period_config.lookback
+        logger.debug(f"Parsing lookback: '{lookback}'")
         hours_match = re.match(r"(\d+)\s*hours?", lookback)
         days_match = re.match(r"(\d+)\s*days?", lookback)
         weeks_match = re.match(r"(\d+)\s*weeks?", lookback)
 
         if hours_match:
             delta = timedelta(hours=int(hours_match.group(1)))
+            logger.debug(f"Matched hours: {hours_match.group(1)}")
         elif days_match:
             delta = timedelta(days=int(days_match.group(1)))
+            logger.debug(f"Matched days: {days_match.group(1)}")
         elif weeks_match:
             delta = timedelta(weeks=int(weeks_match.group(1)))
+            logger.debug(f"Matched weeks: {weeks_match.group(1)}")
         else:
             logger.warning(f"Could not parse lookback '{lookback}', defaulting to 24 hours")
             delta = timedelta(hours=24)
 
         start_time = end_time - delta
+        logger.debug(f"Calculated time window: {start_time} to {end_time} (delta: {delta})")
 
     return start_time, end_time
 
@@ -111,30 +127,55 @@ async def _fetch_channel_messages(
     processed_message_ids: set[tuple[int, int]],
 ) -> list[SourceMessage]:
     """Fetch messages from a single channel."""
+    logger.debug(f"Starting to fetch messages from {channel_identifier}")
+    logger.debug(f"Time window: {start_time} to {end_time}")
+
     entity = await client.get_entity(channel_identifier)
 
     if not isinstance(entity, Channel):
         logger.warning(f"{channel_identifier} is not a channel, skipping")
         return []
 
+    logger.debug(f"Channel entity: {entity.title} (ID: {entity.id})")
     messages: list[SourceMessage] = []
 
-    async for message in client.iter_messages(
-        entity,
-        offset_date=end_time,
-        reverse=True,
-    ):
+    messages_checked = 0
+    messages_skipped_already_processed = 0
+    messages_skipped_no_text = 0
+    messages_skipped_external_forward = 0
+    messages_skipped_time = 0
+
+    # CRITICAL FIX: Don't use reverse=True with offset_date.
+    # Instead, iterate from newest (default) and stop when we hit messages older than start_time.
+    # This is more efficient and correct.
+    logger.debug(f"Starting iteration from most recent messages")
+
+    async for message in client.iter_messages(entity):
+        messages_checked += 1
+
         if not isinstance(message, Message):
+            logger.debug(f"Skipping non-Message object at position {messages_checked}")
             continue
 
+        # Log the message date for debugging
+        if messages_checked <= 5 or messages_checked % 100 == 0:
+            logger.debug(f"Checked {messages_checked} messages, current message date: {message.date}")
+
+        # When iterating from newest to oldest (default), stop when we hit messages before start_time
         if message.date < start_time:
-            continue
-
-        if message.date > end_time:
+            logger.debug(f"Message {message.id} date {message.date} is before start_time {start_time}, stopping iteration")
             break
+
+        # Skip messages after end_time (shouldn't happen but be safe)
+        if message.date > end_time:
+            logger.debug(f"Message {message.id} date {message.date} is after end_time {end_time}, skipping")
+            messages_skipped_time += 1
+            continue
 
         # Skip if already processed
         if (entity.id, message.id) in processed_message_ids:
+            logger.debug(f"Message {message.id} already processed, skipping")
+            messages_skipped_already_processed += 1
             continue
 
         # Skip if no text content
@@ -143,16 +184,31 @@ async def _fetch_channel_messages(
             text = message.media.caption or ""
 
         if not text:
+            logger.debug(f"Message {message.id} has no text content, skipping")
+            messages_skipped_no_text += 1
             continue
 
         # Handle forwards
         is_forward = message.forward is not None
         if is_forward and not processing_config.include_external_forwards:
             if message.forward and hasattr(message.forward, "from_id"):
+                logger.debug(f"Message {message.id} is external forward, skipping")
+                messages_skipped_external_forward += 1
                 continue
 
         normalized_message = _normalize_message(message, entity)
         messages.append(normalized_message)
+
+        if len(messages) <= 5:
+            logger.debug(f"Added message {message.id} to results (total: {len(messages)})")
+
+    logger.info(f"Channel {channel_identifier} stats:")
+    logger.info(f"  - Total messages checked: {messages_checked}")
+    logger.info(f"  - Messages added: {len(messages)}")
+    logger.info(f"  - Skipped (already processed): {messages_skipped_already_processed}")
+    logger.info(f"  - Skipped (no text): {messages_skipped_no_text}")
+    logger.info(f"  - Skipped (external forward): {messages_skipped_external_forward}")
+    logger.info(f"  - Skipped (time filter): {messages_skipped_time}")
 
     return messages
 
