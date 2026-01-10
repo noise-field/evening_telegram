@@ -1,15 +1,15 @@
 """Telegram bot for sending reports."""
 
-import logging
 from pathlib import Path
 from typing import Optional
 
+import structlog
 from telegram import Bot
 from telegram.constants import ParseMode
 
 from ..models.data import Newspaper
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def send_telegram_report(

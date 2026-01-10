@@ -1,14 +1,13 @@
 """HTML output generation using Jinja2."""
 
-import logging
-from datetime import datetime
 from pathlib import Path
 
+import structlog
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from ..models.data import Newspaper
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def generate_html(newspaper: Newspaper, output_path: Path, channels: list[dict[str, str]]) -> str:

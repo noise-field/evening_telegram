@@ -1,14 +1,14 @@
 """SQLite state management for tracking processed messages."""
 
-import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import aiosqlite
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class StateManager:
@@ -106,7 +106,7 @@ class StateManager:
             )
             await db.commit()
 
-        logger.info(f"Started run {run_id}")
+        logger.info("Started run", run_id=run_id)
         return run_id
 
     async def complete_run(
@@ -136,7 +136,7 @@ class StateManager:
             )
             await db.commit()
 
-        logger.info(f"Run {run_id} {status}")
+        logger.info("Run completed", run_id=run_id, status=status)
 
     async def get_last_successful_run(self) -> Optional[tuple[datetime, datetime]]:
         """
@@ -204,4 +204,4 @@ class StateManager:
             )
             await db.commit()
 
-        logger.debug(f"Marked {len(message_ids)} messages as processed")
+        logger.debug("Marked messages as processed", count=len(message_ids))

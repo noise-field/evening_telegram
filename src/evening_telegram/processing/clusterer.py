@@ -1,13 +1,14 @@
 """LLM-based message deduplication and clustering."""
 
-import logging
 from typing import Any
+
+import structlog
 
 from ..llm.client import LLMClient
 from ..llm.prompts import format_clustering_prompt, format_merge_clusters_prompt
 from ..models.data import ArticleType, MessageCluster, SourceMessage
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def deduplicate_and_cluster(
@@ -29,7 +30,7 @@ async def deduplicate_and_cluster(
     if not messages:
         return []
 
-    logger.info(f"Clustering {len(messages)} messages...")
+    logger.info("Clustering messages", count=len(messages))
 
     if len(messages) <= batch_size:
         # Process all messages in single batch
@@ -38,7 +39,7 @@ async def deduplicate_and_cluster(
         # Process in multiple batches and merge
         clusters = await _process_large_batch(messages, llm_client, batch_size)
 
-    logger.info(f"Created {len(clusters)} clusters")
+    logger.info("Created clusters", count=len(clusters))
     return clusters
 
 
@@ -61,7 +62,7 @@ async def _cluster_batch(
     try:
         response = await llm_client.chat_completion_json(prompt_messages)
     except Exception as e:
-        logger.error(f"Failed to cluster messages: {e}")
+        logger.error("Failed to cluster messages", error=str(e))
         # Fallback: create one cluster per message
         return _create_fallback_clusters(messages)
 
@@ -94,12 +95,12 @@ async def _process_large_batch(
     """
     # Split into batches
     batches = [messages[i : i + batch_size] for i in range(0, len(messages), batch_size)]
-    logger.info(f"Processing {len(batches)} batches of ~{batch_size} messages each")
+    logger.info("Processing batches", batch_count=len(batches), batch_size=batch_size)
 
     # Process each batch
     all_clusters: list[MessageCluster] = []
     for batch_idx, batch in enumerate(batches):
-        logger.info(f"Processing batch {batch_idx + 1}/{len(batches)}")
+        logger.info("Processing batch", batch=batch_idx + 1, total=len(batches))
         batch_clusters = await _cluster_batch(batch, llm_client)
 
         # Prefix cluster IDs with batch number
@@ -149,7 +150,7 @@ async def _merge_clusters(
     try:
         response = await llm_client.chat_completion_json(prompt_messages)
     except Exception as e:
-        logger.warning(f"Failed to merge clusters: {e}, using unmerged clusters")
+        logger.warning("Failed to merge clusters, using unmerged clusters", error=str(e))
         return clusters
 
     # Build cluster lookup

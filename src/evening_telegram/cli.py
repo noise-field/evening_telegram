@@ -9,11 +9,9 @@ from pathlib import Path
 from typing import Any, Optional
 
 import click
-from rich.console import Console
-from rich.logging import RichHandler
+import structlog
 
 from .config import load_config
-from .config.models import Config
 from .llm.client import LLMClient
 from .llm.tracker import TokenTracker
 from .models.data import Article, ArticleType, Newspaper, NewspaperSection
@@ -22,7 +20,7 @@ from .processing import deduplicate_and_cluster, generate_article
 from .state import StateManager
 from .telegram import TelegramClientWrapper, fetch_messages, send_telegram_report
 
-console = Console()
+logger = structlog.get_logger()
 
 
 @click.command()
@@ -56,12 +54,17 @@ def main(
     verbose: int,
 ) -> None:
     """The Evening Telegram - Generate a newspaper-style digest from Telegram channels."""
-    # Configure root logger at WARNING to suppress third-party package logs
-    # This must be done early before any other logging happens
-    logging.basicConfig(
-        level=logging.WARNING,
-        format="%(message)s",
-        handlers=[RichHandler(console=console, rich_tracebacks=True)],
+    # Configure structlog
+    structlog.configure(
+        processors=[
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.dev.ConsoleRenderer(),
+        ],
+        wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING),
+        context_class=dict,
+        logger_factory=structlog.PrintLoggerFactory(),
+        cache_logger_on_first_use=False,
     )
 
     # Prepare CLI overrides
@@ -90,12 +93,10 @@ def main(
     try:
         asyncio.run(run_evening_telegram(config, overrides, dry_run, verbose))
     except KeyboardInterrupt:
-        console.print("\n[yellow]Interrupted by user[/yellow]")
+        logger.warning("Interrupted by user")
         sys.exit(1)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        if verbose >= 2:
-            console.print_exception()
+        logger.error("Fatal error", error=str(e), exc_info=verbose >= 2)
         sys.exit(1)
 
 
@@ -115,7 +116,7 @@ async def run_evening_telegram(
         verbose: Verbosity level from CLI
     """
     # Load configuration
-    console.print("[bold]Loading configuration...[/bold]")
+    logger.info("Loading configuration")
     cfg = load_config(config_path, overrides)
 
     # Set application logging level based on CLI flags or config
@@ -134,9 +135,10 @@ async def run_evening_telegram(
         }
         log_level = level_map.get(cfg.logging.level.upper(), logging.INFO)
 
-    # Set our application's logger to the desired level
-    app_logger = logging.getLogger("evening_telegram")
-    app_logger.setLevel(log_level)
+    # Update structlog filtering level
+    structlog.configure(
+        wrapper_class=structlog.make_filtering_bound_logger(log_level),
+    )
 
     # Initialize state manager
     state_manager = StateManager(cfg.state.db_path)
@@ -150,14 +152,14 @@ async def run_evening_telegram(
         last_run = await state_manager.get_last_successful_run()
         if last_run:
             since_timestamp = last_run[1]
-            console.print(f"[dim]Running in incremental mode since {since_timestamp}[/dim]")
+            logger.info("Running in incremental mode", since=since_timestamp)
 
         # In since_last mode, skip already processed messages
         processed_ids = await state_manager.get_processed_message_ids()
-        console.print(f"[dim]Found {len(processed_ids)} previously processed messages[/dim]")
+        logger.info("Found previously processed messages", count=len(processed_ids))
     else:
         # In full mode, reprocess all messages in the time window
-        console.print(f"[dim]Running in full mode - will process all messages in lookback period[/dim]")
+        logger.info("Running in full mode - will process all messages in lookback period")
 
     # Start new run
     # Use timezone-aware datetimes to match Telegram timestamps
@@ -167,7 +169,7 @@ async def run_evening_telegram(
 
     try:
         # Fetch messages
-        console.print(f"[bold]Fetching messages from {len(cfg.channels)} channels...[/bold]")
+        logger.info("Fetching messages", channel_count=len(cfg.channels))
 
         async with TelegramClientWrapper(cfg.telegram) as client:
             messages = await fetch_messages(
@@ -180,24 +182,24 @@ async def run_evening_telegram(
             )
 
         if not messages:
-            console.print("[yellow]No new messages to process[/yellow]")
+            logger.warning("No new messages to process")
             await state_manager.complete_run(run_id, 0)
             return
 
-        console.print(f"[green]Fetched {len(messages)} messages[/green]")
+        logger.info("Fetched messages", count=len(messages))
 
         # Initialize LLM client
         token_tracker = TokenTracker()
         llm_client = LLMClient(cfg.llm, token_tracker)
 
         # Cluster messages
-        console.print("[bold]Clustering messages...[/bold]")
+        logger.info("Clustering messages")
         clusters = await deduplicate_and_cluster(
             messages=messages,
             llm_client=llm_client,
             batch_size=cfg.processing.clustering_batch_size,
         )
-        console.print(f"[green]Created {len(clusters)} topic clusters[/green]")
+        logger.info("Created topic clusters", count=len(clusters))
 
         # Filter clusters by minimum sources
         significant_clusters = [
@@ -207,40 +209,40 @@ async def run_evening_telegram(
             c for c in clusters if c.source_count < cfg.processing.min_sources_for_article
         ]
 
-        console.print(
-            f"[dim]{len(significant_clusters)} significant topics, {len(brief_clusters)} brief items[/dim]"
+        logger.info(
+            "Filtered clusters",
+            significant=len(significant_clusters),
+            brief=len(brief_clusters),
         )
 
         # Generate articles
-        console.print("[bold]Generating articles...[/bold]")
+        logger.info("Generating articles")
         articles: list[Article] = []
 
-        with console.status("[bold]Writing articles...") as status:
-            for cluster in significant_clusters:
-                article = await generate_article(
-                    cluster=cluster,
-                    language=cfg.output.language,
-                    newspaper_name=cfg.output.newspaper_name,
-                    llm_client=llm_client,
-                )
-                if article:
-                    articles.append(article)
-                    status.update(f"[bold]Generated {len(articles)} articles...")
+        for cluster in significant_clusters:
+            article = await generate_article(
+                cluster=cluster,
+                language=cfg.output.language,
+                newspaper_name=cfg.output.newspaper_name,
+                llm_client=llm_client,
+            )
+            if article:
+                articles.append(article)
 
-            # Generate briefs
-            for cluster in brief_clusters:
-                cluster.suggested_type = ArticleType.BRIEF
-                cluster.suggested_section = "In Brief"
-                article = await generate_article(
-                    cluster=cluster,
-                    language=cfg.output.language,
-                    newspaper_name=cfg.output.newspaper_name,
-                    llm_client=llm_client,
-                )
-                if article:
-                    articles.append(article)
+        # Generate briefs
+        for cluster in brief_clusters:
+            cluster.suggested_type = ArticleType.BRIEF
+            cluster.suggested_section = "In Brief"
+            article = await generate_article(
+                cluster=cluster,
+                language=cfg.output.language,
+                newspaper_name=cfg.output.newspaper_name,
+                llm_client=llm_client,
+            )
+            if article:
+                articles.append(article)
 
-        console.print(f"[green]Generated {len(articles)} articles[/green]")
+        logger.info("Generated articles", count=len(articles))
 
         # Organize into sections
         sections_dict: dict[str, list[Article]] = {}
@@ -302,19 +304,19 @@ async def run_evening_telegram(
 
         # Output
         if dry_run:
-            console.print("[yellow]Dry run mode - skipping output[/yellow]")
+            logger.warning("Dry run mode - skipping output")
         else:
             html_content = ""
             html_path_str = ""
 
             # Generate HTML
             if cfg.output.save_html:
-                console.print("[bold]Generating HTML...[/bold]")
+                logger.info("Generating HTML")
                 channel_info = [
                     {"username": ch, "title": ch} for ch in cfg.channels
                 ]
                 html_path_str = generate_html(newspaper, cfg.output.html_path, channel_info)
-                console.print(f"[green]Saved HTML to {html_path_str}[/green]")
+                logger.info("Saved HTML", path=html_path_str)
 
                 # Read HTML content for email
                 with open(html_path_str, "r", encoding="utf-8") as f:
@@ -322,22 +324,21 @@ async def run_evening_telegram(
 
             # Send via Telegram
             if cfg.output.send_telegram and cfg.telegram.bot_token and cfg.telegram.report_chat_id:
-                console.print("[bold]Sending to Telegram...[/bold]")
+                logger.info("Sending to Telegram")
                 await send_telegram_report(
                     newspaper=newspaper,
                     bot_token=cfg.telegram.bot_token,
                     chat_id=cfg.telegram.report_chat_id,
                     html_path=html_path_str if html_path_str else None,
                 )
-                console.print("[green]Sent to Telegram[/green]")
+                logger.info("Sent to Telegram")
 
             # Send via email
             if cfg.output.send_email and cfg.email:
-                console.print("[bold]Sending email...[/bold]")
+                logger.info("Sending email")
                 if not html_content:
                     # Generate HTML for email if not already generated
                     channel_info = [{"username": ch, "title": ch} for ch in cfg.channels]
-                    from .output.html import generate_html as gen_html_string
                     from jinja2 import Environment, FileSystemLoader, select_autoescape
 
                     template_dir = Path(__file__).parent / "templates"
@@ -351,7 +352,7 @@ async def run_evening_telegram(
                     )
 
                 await send_email_report(newspaper, html_content, cfg.email)
-                console.print("[green]Sent email[/green]")
+                logger.info("Sent email")
 
         # Mark messages as processed
         message_ids = [(m.channel_id, m.message_id) for m in messages]
@@ -361,11 +362,13 @@ async def run_evening_telegram(
         await state_manager.complete_run(run_id, len(messages))
 
         # Summary
-        console.print("\n[bold green]✓ Completed successfully[/bold green]")
-        console.print(f"  Articles: {newspaper.total_articles}")
-        console.print(f"  Messages: {newspaper.total_messages_processed}")
-        console.print(f"  Channels: {newspaper.total_channels}")
-        console.print(f"  LLM tokens: {token_tracker.total_tokens:,}")
+        logger.info(
+            "Completed successfully",
+            articles=newspaper.total_articles,
+            messages=newspaper.total_messages_processed,
+            channels=newspaper.total_channels,
+            llm_tokens=token_tracker.total_tokens,
+        )
 
     except Exception as e:
         await state_manager.complete_run(run_id, 0, str(e))

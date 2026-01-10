@@ -19,10 +19,39 @@ The Evening Telegram is a Python application that aggregates messages from Teleg
 
 ### 1. Installation
 
+#### Using uv (recommended)
+
+[uv](https://github.com/astral-sh/uv) is a fast Python package installer and resolver.
+
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd EveningTelegram
+
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create a virtual environment and install dependencies
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install the package in development mode
+uv pip install -e .
+
+# Or install from requirements.txt (pinned versions)
+uv pip install -r requirements.txt
+```
+
+#### Using pip
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd EveningTelegram
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -e .
@@ -282,11 +311,43 @@ The model is returning invalid JSON. Try:
 
 ## Development
 
+### Setting Up Development Environment
+
+#### With uv (recommended)
+
+```bash
+# Create virtual environment
+uv venv
+
+# Activate it
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install package with dev dependencies
+uv pip install -e ".[dev]"
+
+# Or install from requirements files
+uv pip install -r requirements.txt
+uv pip install -r requirements-dev.txt  # If you have one
+```
+
+#### Updating Dependencies
+
+```bash
+# Update requirements.txt from requirements.in
+uv pip compile requirements.in -o requirements.txt
+
+# Install updated dependencies
+uv pip sync requirements.txt
+
+# For development, add package in editable mode
+uv pip install -e .
+```
+
 ### Running Tests
 
 ```bash
 # Install dev dependencies
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 
 # Run tests
 pytest
@@ -307,6 +368,13 @@ ruff check .
 # Type checking
 mypy src/
 ```
+
+### Why uv?
+
+- **Speed**: 10-100x faster than pip for package installation
+- **Reliability**: Built-in dependency resolution that avoids conflicts
+- **Compatibility**: Drop-in replacement for pip with the same interface
+- **Modern**: Written in Rust with a focus on performance and correctness
 
 ## Contributing
 

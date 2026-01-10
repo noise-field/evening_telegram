@@ -1,10 +1,10 @@
 """Message fetching from Telegram channels."""
 
-import logging
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import structlog
 from dateutil import parser as date_parser
 from telethon import TelegramClient
 from telethon.tl.types import Channel, Message
@@ -12,7 +12,7 @@ from telethon.tl.types import Channel, Message
 from ..config.models import PeriodConfig, ProcessingConfig
 from ..models.data import MediaReference, SourceMessage
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def fetch_messages(
@@ -148,7 +148,7 @@ async def _fetch_channel_messages(
     # CRITICAL FIX: Don't use reverse=True with offset_date.
     # Instead, iterate from newest (default) and stop when we hit messages older than start_time.
     # This is more efficient and correct.
-    logger.debug(f"Starting iteration from most recent messages")
+    logger.debug("Starting iteration from most recent messages")
 
     async for message in client.iter_messages(entity):
         messages_checked += 1

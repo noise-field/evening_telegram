@@ -1,8 +1,10 @@
 """Token usage tracking for LLM API calls."""
 
-import logging
+from typing import Any
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class TokenTracker:
@@ -14,7 +16,7 @@ class TokenTracker:
         self.completion_tokens = 0
         self.calls = 0
 
-    def record(self, response: any) -> None:
+    def record(self, response: Any) -> None:
         """
         Record usage from an LLM API response.
 
@@ -26,8 +28,9 @@ class TokenTracker:
             self.completion_tokens += response.usage.completion_tokens
             self.calls += 1
             logger.debug(
-                f"Recorded {response.usage.prompt_tokens} prompt + "
-                f"{response.usage.completion_tokens} completion tokens"
+                "Recorded token usage",
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
             )
 
     @property

@@ -1,15 +1,15 @@
 """OpenAI-compatible LLM client."""
 
 import json
-import logging
 from typing import Any, Optional
 
+import structlog
 from openai import AsyncOpenAI
 
 from ..config.models import LLMConfig
 from .tracker import TokenTracker
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class LLMClient:

@@ -1,0 +1,32 @@
+# The Evening Telegram - Core Dependencies
+# Compile with: uv pip compile requirements.in -o requirements.txt
+
+# Telegram clients
+telethon>=1.34
+python-telegram-bot>=20
+
+# LLM client
+openai>=1.0
+
+# Configuration and validation
+pydantic>=2.0
+pydantic-settings>=2.0
+pyyaml>=6.0
+
+# CLI and terminal
+click>=8.0
+
+# HTML templating
+jinja2>=3.0
+
+# Email delivery
+aiosmtplib>=3.0
+
+# Database
+aiosqlite>=0.19
+
+# Utilities
+python-dateutil>=2.8
+
+# Structured logging
+structlog>=24.0

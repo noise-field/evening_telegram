@@ -1,13 +1,13 @@
 """Telegram client wrapper using Telethon."""
 
-import logging
 from pathlib import Path
 
+import structlog
 from telethon import TelegramClient
 
 from ..config.models import TelegramConfig
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class TelegramClientWrapper:

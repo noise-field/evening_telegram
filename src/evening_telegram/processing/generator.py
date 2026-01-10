@@ -1,15 +1,16 @@
 """Article generation from message clusters."""
 
-import logging
 import re
 import uuid
 from datetime import datetime
 
+import structlog
+
 from ..llm.client import LLMClient
 from ..llm.prompts import format_article_generation_prompt
-from ..models.data import Article, ArticleType, MessageCluster, SourceMessage
+from ..models.data import Article, MessageCluster, SourceMessage
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def _make_sources_clickable(body: str, sources: list[SourceMessage]) -> str:
