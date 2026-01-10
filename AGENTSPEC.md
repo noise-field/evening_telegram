@@ -16,17 +16,22 @@ Modern Telegram channels, like most social media, create a compulsive urge to st
 
 ### 1.2 Solution
 
-**The Evening Telegram** is a Python application that:
+**The Evening Telegram** is a Python daemon application that:
 
-1. Reads messages from user-specified Telegram channels over a configurable time period
-2. Uses an LLM to identify recurring themes, deduplicate information, and cluster topics
-3. Generates a professionally-styled HTML "newspaper" with categorized articles
-4. Delivers the report via local file, Telegram bot message, and/or email
+1. Runs continuously as a background service
+2. Manages multiple subscriptions, each with its own configuration
+3. Reads messages from user-specified Telegram channels over configurable time periods
+4. Uses an LLM to identify recurring themes, deduplicate information, and cluster topics
+5. Generates professionally-styled HTML "newspapers" with categorized articles
+6. Delivers reports via local file, Telegram bot message, and/or email at scheduled times
+7. Supports different update frequencies per subscription (e.g., daily for politics, weekly for AI news)
 
 ### 1.3 Design Principles
 
-- **On-demand execution**: Designed to run via cron or manual invocation, not as a daemon
-- **Configurable**: Channels, time periods, language, LLM provider, and output options are user-defined
+- **Daemon mode**: Runs as a background service with configurable subscriptions and schedules
+- **Multiple subscriptions**: Each subscription has its own channels, schedule, output format, and delivery method
+- **Flexible scheduling**: Support for daily, weekly, and custom time-based report generation
+- **Configurable**: Channels, time periods, language, LLM provider, and output options are user-defined per subscription
 - **Attribution-first**: Every claim links back to its source message(s)
 - **Cost-transparent**: Token usage reported in the output footer
 - **Minimal API calls**: State management to avoid re-fetching already-processed content
@@ -111,45 +116,15 @@ telegram:
   # MTProto API credentials (from https://my.telegram.org/apps)
   api_id: 12345678
   api_hash: "your_api_hash_here"
-  
+
   # Phone number for the account (international format)
   phone: "+1234567890"
-  
+
   # Session file location (stores auth session to avoid re-login)
   session_file: "~/.config/evening-telegram/telegram.session"
-  
-  # Bot token for sending reports (from @BotFather)
-  bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-  
-  # Chat ID to send reports to (can be user ID, group ID, or channel)
-  # Use @userinfobot or similar to find your chat ID
-  report_chat_id: 123456789
 
 # =============================================================================
-# CHANNELS TO MONITOR
-# =============================================================================
-channels:
-  # List of channel usernames or IDs
-  # Supports both public (@username) and private (ID) channels
-  # For private channels, use the numeric ID (can be found via Telethon)
-  - "@example_news_channel"
-  - "@another_channel"
-  - -1001234567890  # Private channel by ID
-
-# =============================================================================
-# TIME PERIOD
-# =============================================================================
-period:
-  # How far back to look for messages
-  # Supported units: hours, days, weeks
-  lookback: "24 hours"
-  
-  # Alternative: explicit time range (overrides lookback if both present)
-  # from: "2024-01-15T00:00:00"
-  # to: "2024-01-15T23:59:59"
-
-# =============================================================================
-# LLM CONFIGURATION
+# LLM CONFIGURATION (default for all subscriptions)
 # =============================================================================
 llm:
   # OpenAI-compatible API endpoint
@@ -160,94 +135,137 @@ llm:
   #   - Together.ai: https://api.together.xyz/v1
   #   - OpenRouter: https://openrouter.ai/api/v1
   base_url: "https://api.openai.com/v1"
-  
+
   # API key (can also be set via EVENING_TELEGRAM_LLM_API_KEY env var)
   api_key: "sk-..."
-  
+
   # Model identifier
   model: "gpt-4o"
-  
+
   # Temperature for generation (0.0 = deterministic, 1.0 = creative)
   temperature: 0.3
-  
+
   # Maximum tokens per LLM call
   max_tokens: 4096
-  
+
   # Request timeout in seconds
   timeout: 120
 
 # =============================================================================
-# OUTPUT CONFIGURATION
+# SUBSCRIPTIONS
 # =============================================================================
-output:
-  # Output language (ISO 639-1 code)
-  # The newspaper will be written in this language regardless of source language
-  language: "en"
-  
-  # Newspaper name (appears in header)
-  newspaper_name: "The Evening Telegram"
-  
-  # Tagline (appears under name)
-  tagline: "All the news that's fit to aggregate"
-  
-  # HTML output file path
-  # Supports strftime formatting for date-based filenames
-  html_path: "~/evening-telegram/editions/%Y-%m-%d.html"
-  
-  # Enable/disable output channels
-  save_html: true
-  send_telegram: true
-  send_email: false
+subscriptions:
+  # Each subscription is a separate news digest with its own settings
+
+  politics_daily:
+    # Subscription name (used for logging and file naming)
+    name: "Daily Politics & Finance"
+
+    # Channels to monitor for this subscription
+    channels:
+      - "@politics_channel"
+      - "@financial_news"
+      - "@world_news"
+
+    # Report generation schedule
+    schedule:
+      # How far back to look for messages when generating reports
+      lookback: "12 hours"
+
+      # Time(s) to generate reports (24-hour format)
+      # Can specify multiple times for multiple reports per day
+      times:
+        - "10:00"  # Morning briefing at 10 AM
+        - "22:00"  # Evening briefing at 10 PM
+
+    # Output configuration
+    output:
+      language: "en"
+      newspaper_name: "Politics & Finance Daily"
+      tagline: "Your daily briefing on politics and markets"
+
+      # HTML output path (supports strftime formatting)
+      html_path: "~/evening-telegram/politics/%Y-%m-%d-%H%M.html"
+
+      # Delivery methods
+      save_html: true
+      send_telegram: true
+      send_email: false
+
+      # Telegram delivery (optional, overrides global)
+      telegram:
+        bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+        chat_id: 123456789
+
+      # Email delivery (optional)
+      email:
+        to:
+          - "user@example.com"
+        from_address: "politics@example.com"
+        from_name: "Politics Daily"
+
+    # Processing options (optional, uses defaults if not specified)
+    processing:
+      min_sources_for_article: 2
+      max_messages: 0
+      include_external_forwards: true
+      clustering_batch_size: 50
+
+  ai_weekly:
+    name: "AI Weekly Digest"
+
+    channels:
+      - "@ai_news"
+      - "@ml_research"
+      - "@llm_updates"
+
+    schedule:
+      # Weekly lookback
+      lookback: "7 days"
+
+      # Day of week (0=Monday, 6=Sunday) and time
+      day_of_week: 0  # Monday
+      time: "09:00"
+
+    output:
+      language: "en"
+      newspaper_name: "AI Weekly"
+      tagline: "Your weekly AI and ML digest"
+      html_path: "~/evening-telegram/ai-weekly/%Y-W%U.html"
+
+      save_html: true
+      send_telegram: true
+      send_email: true
+
+      telegram:
+        bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+        chat_id: 987654321
+
+      email:
+        to:
+          - "user@example.com"
+        from_address: "ai-weekly@example.com"
+        from_name: "AI Weekly Digest"
 
 # =============================================================================
-# EMAIL CONFIGURATION (optional)
+# GLOBAL EMAIL CONFIGURATION (optional, for subscriptions without specific config)
 # =============================================================================
 email:
-  # SMTP server settings
   smtp_host: "smtp.gmail.com"
   smtp_port: 587
   smtp_user: "your-email@gmail.com"
-  # Password (can also be set via EVENING_TELEGRAM_SMTP_PASSWORD env var)
-  smtp_password: "app-specific-password"
-  
-  # Use TLS
+  smtp_password: "app-specific-password"  # or set EVENING_TELEGRAM_SMTP_PASSWORD
   use_tls: true
-  
-  # Recipient(s)
-  to:
-    - "recipient@example.com"
-  
-  # Sender address and name
-  from_address: "your-email@gmail.com"
-  from_name: "The Evening Telegram"
-
-# =============================================================================
-# PROCESSING OPTIONS
-# =============================================================================
-processing:
-  # Minimum number of sources required to consider a topic "significant"
-  # Topics mentioned by fewer sources may be grouped into "In Brief"
-  min_sources_for_article: 2
-  
-  # Maximum messages to process per run (0 = unlimited)
-  # Useful for cost control during testing
-  max_messages: 0
-  
-  # Include messages that are forwards from channels not in the watch list
-  include_external_forwards: true
-  
-  # Batch size for LLM clustering (larger = fewer API calls, but longer prompts)
-  clustering_batch_size: 50
 
 # =============================================================================
 # STATE MANAGEMENT
 # =============================================================================
 state:
-  # SQLite database for tracking processed messages
+  # SQLite database for tracking processed messages per subscription
   db_path: "~/.config/evening-telegram/state.db"
-  
+
   # Run mode:
-  #   - "since_last": Only process messages since last successful run
+  #   - "since_last": Only process messages since last successful run per subscription
   #   - "full": Always process the full lookback period (may reprocess)
   mode: "since_last"
 
@@ -255,10 +273,7 @@ state:
 # LOGGING
 # =============================================================================
 logging:
-  # Log level: DEBUG, INFO, WARNING, ERROR
   level: "INFO"
-  
-  # Log file (optional, also logs to stderr)
   file: "~/.config/evening-telegram/evening-telegram.log"
 ```
 
@@ -277,30 +292,37 @@ Sensitive values can be provided via environment variables (these override confi
 ### 3.3 CLI Interface
 
 ```bash
-# Basic usage with config file
-evening-telegram
+# Start daemon mode (runs continuously)
+evening-telegram daemon
 
-# Specify custom config file
-evening-telegram --config /path/to/config.yaml
+# Specify custom config file for daemon
+evening-telegram daemon --config /path/to/config.yaml
 
-# Override time period
-evening-telegram --lookback "7 days"
-evening-telegram --from "2024-01-15" --to "2024-01-16"
+# Run a specific subscription once (one-off mode)
+evening-telegram run --subscription politics_daily
 
-# Override output options
-evening-telegram --output ~/custom-output.html
-evening-telegram --no-telegram --no-email  # HTML only
-evening-telegram --telegram-only           # Skip HTML save
+# Run with custom lookback period (one-off mode)
+evening-telegram run --subscription ai_weekly --lookback "14 days"
 
-# Override channels (comma-separated)
-evening-telegram --channels "@channel1,@channel2"
+# Run all subscriptions once (useful for testing)
+evening-telegram run-all
+
+# Override output options (one-off mode)
+evening-telegram run --subscription politics_daily --output ~/custom-output.html
+evening-telegram run --subscription politics_daily --no-telegram --no-email  # HTML only
 
 # Dry run (fetch and process, but don't send or save)
-evening-telegram --dry-run
+evening-telegram run --subscription politics_daily --dry-run
 
 # Verbose output
-evening-telegram -v
-evening-telegram -vv  # Debug level
+evening-telegram daemon -v
+evening-telegram run --subscription politics_daily -vv  # Debug level
+
+# List configured subscriptions
+evening-telegram list-subscriptions
+
+# Test schedule for a subscription (shows next execution times)
+evening-telegram test-schedule --subscription politics_daily
 ```
 
 ---
@@ -1288,14 +1310,64 @@ The following are out of scope for v1.0 but documented for future consideration:
 
 ---
 
-## Appendix A: Example Cron Setup
+## Appendix A: Running as a System Service
+
+### Systemd Service (Linux)
+
+Create `/etc/systemd/system/evening-telegram.service`:
+
+```ini
+[Unit]
+Description=The Evening Telegram - News digest daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=your-username
+WorkingDirectory=/home/your-username
+ExecStart=/usr/local/bin/evening-telegram daemon --config /home/your-username/.config/evening-telegram/config.yaml
+Restart=always
+RestartSec=10
+
+# Environment variables for secrets
+Environment="EVENING_TELEGRAM_LLM_API_KEY=your-key-here"
+Environment="EVENING_TELEGRAM_SMTP_PASSWORD=your-password-here"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl enable evening-telegram
+sudo systemctl start evening-telegram
+sudo systemctl status evening-telegram
+```
+
+View logs:
+```bash
+sudo journalctl -u evening-telegram -f
+```
+
+### Alternative: Screen/Tmux
 
 ```bash
-# Daily evening edition at 6 PM
-0 18 * * * /path/to/evening-telegram --config ~/.config/evening-telegram/config.yaml
+# Using screen
+screen -S evening-telegram
+evening-telegram daemon
+# Detach with Ctrl+A, D
 
-# Weekly digest every Sunday at 10 AM
-0 10 * * 0 /path/to/evening-telegram --config ~/.config/evening-telegram/weekly.yaml --lookback "7 days"
+# Reattach
+screen -r evening-telegram
+
+# Using tmux
+tmux new -s evening-telegram
+evening-telegram daemon
+# Detach with Ctrl+B, D
+
+# Reattach
+tmux attach -t evening-telegram
 ```
 
 ---
@@ -1303,13 +1375,14 @@ The following are out of scope for v1.0 but documented for future consideration:
 ## Appendix B: First Run Checklist
 
 1. [ ] Obtain Telegram API credentials from https://my.telegram.org/apps
-2. [ ] Create a Telegram bot via @BotFather and get the token
-3. [ ] Find your chat ID (use @userinfobot or similar)
+2. [ ] Create Telegram bot(s) via @BotFather for each subscription (or use one bot for all)
+3. [ ] Find your chat ID(s) (use @userinfobot or similar)
 4. [ ] Obtain LLM API credentials from your chosen provider
-5. [ ] Create configuration file from example
-6. [ ] Run `evening-telegram` once interactively to complete Telegram auth
-7. [ ] Test with `--dry-run` flag
-8. [ ] Set up cron job for automated runs
+5. [ ] Create configuration file from example with your subscriptions
+6. [ ] Run `evening-telegram run --subscription <name> --dry-run` to complete Telegram auth and test
+7. [ ] Test each subscription individually with `--dry-run` flag
+8. [ ] Verify schedules with `evening-telegram test-schedule --subscription <name>`
+9. [ ] Start daemon with `evening-telegram daemon` or set up as systemd service
 
 ---
 

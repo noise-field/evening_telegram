@@ -1,0 +1,226 @@
+# Example configuration file for The Evening Telegram
+# Copy this to ~/.config/evening-telegram/config.yaml and customize
+
+# =============================================================================
+# TELEGRAM AUTHENTICATION
+# =============================================================================
+telegram:
+  # MTProto API credentials (from https://my.telegram.org/apps)
+  api_id: 12345678
+  api_hash: "your_api_hash_here"
+
+  # Phone number for the account (international format)
+  phone: "+1234567890"
+
+  # Session file location (stores auth session to avoid re-login)
+  session_file: "~/.config/evening-telegram/telegram.session"
+
+# =============================================================================
+# LLM CONFIGURATION (default for all subscriptions)
+# =============================================================================
+llm:
+  # OpenAI-compatible API endpoint
+  # Examples:
+  #   - OpenAI: https://api.openai.com/v1
+  #   - Anthropic: https://api.anthropic.com/v1/
+  #   - Ollama: http://localhost:11434/v1
+  #   - Together.ai: https://api.together.xyz/v1
+  #   - OpenRouter: https://openrouter.ai/api/v1
+  base_url: "https://api.openai.com/v1"
+
+  # API key (can also be set via EVENING_TELEGRAM_LLM_API_KEY env var)
+  api_key: "sk-..."
+
+  # Model identifier
+  model: "gpt-4o"
+
+  # Temperature for generation (0.0 = deterministic, 1.0 = creative)
+  # temperature: 0.3
+
+  # Maximum tokens per LLM call
+  # max_tokens: 4096
+
+  # Request timeout in seconds
+  timeout: 120
+
+# =============================================================================
+# SUBSCRIPTIONS
+# =============================================================================
+subscriptions:
+  # Each subscription is a separate news digest with its own settings
+  # You can define as many subscriptions as you need
+
+  # Example 1: Daily morning and evening briefings for politics and finance
+  politics_daily:
+    name: "Daily Politics & Finance"
+
+    channels:
+      - "@politics_channel"
+      - "@financial_news"
+      - "@world_news"
+
+    schedule:
+      # How far back to look for messages
+      lookback: "12 hours"
+
+      # Generate reports at these times (24-hour format)
+      times:
+        - "10:00"  # Morning briefing
+        - "22:00"  # Evening briefing
+
+    output:
+      language: "en"
+      newspaper_name: "Politics & Finance Daily"
+      tagline: "Your daily briefing on politics and markets"
+      html_path: "~/evening-telegram/politics/%Y-%m-%d-%H%M.html"
+
+      save_html: true
+      send_telegram: true
+      send_email: false
+
+      telegram:
+        bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+        chat_id: 123456789
+
+      sections:
+        - "Breaking News"
+        - "Politics"
+        - "World"
+        - "Business"
+        - "Opinion"
+        - "In Brief"
+
+    processing:
+      min_sources_for_article: 2
+      clustering_batch_size: 50
+
+  # Example 2: Weekly AI digest on Monday mornings
+  ai_weekly:
+    name: "AI Weekly Digest"
+
+    channels:
+      - "@ai_news"
+      - "@ml_research"
+      - "@llm_updates"
+
+    schedule:
+      lookback: "7 days"
+      day_of_week: 0  # Monday (0=Monday, 6=Sunday)
+      time: "09:00"
+
+    output:
+      language: "en"
+      newspaper_name: "AI Weekly"
+      tagline: "Your weekly AI and ML digest"
+      html_path: "~/evening-telegram/ai-weekly/%Y-W%U.html"
+
+      save_html: true
+      send_telegram: true
+      send_email: true
+
+      telegram:
+        bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+        chat_id: 987654321
+
+      email:
+        to:
+          - "user@example.com"
+        from_address: "ai-weekly@example.com"
+        from_name: "AI Weekly Digest"
+
+      sections:
+        - "AI Research"
+        - "LLM Updates"
+        - "AI Security"
+        - "Industry News"
+        - "In Brief"
+
+  # Example 3: Hourly crypto updates during trading hours
+  crypto_hourly:
+    name: "Crypto Hourly Updates"
+
+    channels:
+      - "@crypto_news"
+      - "@blockchain_updates"
+
+    schedule:
+      lookback: "1 hour"
+
+      # Generate reports every hour from 9 AM to 5 PM
+      times:
+        - "09:00"
+        - "10:00"
+        - "11:00"
+        - "12:00"
+        - "13:00"
+        - "14:00"
+        - "15:00"
+        - "16:00"
+        - "17:00"
+
+    output:
+      language: "en"
+      newspaper_name: "Crypto Pulse"
+      tagline: "Hourly cryptocurrency market updates"
+      html_path: "~/evening-telegram/crypto/%Y-%m-%d-%H00.html"
+
+      save_html: true
+      send_telegram: true
+      send_email: false
+
+      telegram:
+        bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+        chat_id: 111222333
+
+      sections:
+        - "Market Moves"
+        - "Breaking News"
+        - "Analysis"
+        - "In Brief"
+
+    processing:
+      min_sources_for_article: 1  # Lower threshold for faster-moving news
+      max_messages: 100  # Limit for cost control
+      clustering_batch_size: 30
+
+# =============================================================================
+# GLOBAL EMAIL CONFIGURATION (optional)
+# =============================================================================
+# This is used by subscriptions that have send_email: true but don't specify
+# their own email configuration
+email:
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  smtp_user: "your-email@gmail.com"
+  smtp_password: "app-specific-password"  # or set EVENING_TELEGRAM_SMTP_PASSWORD
+  use_tls: true
+
+  # Default recipients and sender (can be overridden per subscription)
+  to:
+    - "recipient@example.com"
+  from_address: "your-email@gmail.com"
+  from_name: "The Evening Telegram"
+
+# =============================================================================
+# STATE MANAGEMENT
+# =============================================================================
+state:
+  # SQLite database for tracking processed messages per subscription
+  db_path: "~/.config/evening-telegram/state.db"
+
+  # Run mode:
+  #   - "since_last": Only process messages since last successful run per subscription
+  #   - "full": Always process the full lookback period (may reprocess)
+  mode: "since_last"
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  # Note: This only affects evening-telegram logs. Third-party packages
+  # are kept at WARNING to reduce noise.
+  level: "INFO"
+
+  # Log file (optional, also logs to stderr)
+  file: "~/.config/evening-telegram/evening-telegram.log"

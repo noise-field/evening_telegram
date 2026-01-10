@@ -8,18 +8,40 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class TelegramConfig(BaseModel):
-    """Telegram authentication and bot configuration."""
+    """Telegram authentication configuration."""
 
     api_id: int
     api_hash: str
     phone: str
     session_file: Path = Path("~/.config/evening-telegram/telegram.session")
-    bot_token: Optional[str] = None
-    report_chat_id: Optional[int] = None
+
+
+class TelegramDeliveryConfig(BaseModel):
+    """Telegram delivery configuration for a subscription."""
+
+    bot_token: str
+    chat_id: int
+
+
+class ScheduleConfig(BaseModel):
+    """Schedule configuration for a subscription."""
+
+    lookback: str = "24 hours"
+
+    # For daily/multiple times per day schedules
+    times: Optional[list[str]] = None  # e.g., ["10:00", "22:00"]
+
+    # For weekly schedules
+    day_of_week: Optional[int] = None  # 0=Monday, 6=Sunday
+    time: Optional[str] = None  # e.g., "09:00"
+
+    # For explicit time ranges (overrides lookback)
+    from_time: Optional[str] = Field(None, alias="from")
+    to_time: Optional[str] = Field(None, alias="to")
 
 
 class PeriodConfig(BaseModel):
-    """Time period configuration."""
+    """Time period configuration (legacy, for backwards compatibility)."""
 
     lookback: str = "24 hours"
     from_time: Optional[str] = Field(None, alias="from")
@@ -37,8 +59,16 @@ class LLMConfig(BaseModel):
     timeout: int = 120
 
 
+class SubscriptionEmailConfig(BaseModel):
+    """Email configuration specific to a subscription."""
+
+    to: list[str]
+    from_address: Optional[str] = None
+    from_name: Optional[str] = None
+
+
 class OutputConfig(BaseModel):
-    """Output configuration."""
+    """Output configuration for a subscription."""
 
     language: str = "en"
     newspaper_name: str = "The Evening Telegram"
@@ -47,6 +77,11 @@ class OutputConfig(BaseModel):
     save_html: bool = True
     send_telegram: bool = True
     send_email: bool = False
+
+    # Optional per-subscription delivery configs
+    telegram: Optional[TelegramDeliveryConfig] = None
+    email: Optional[SubscriptionEmailConfig] = None
+
     sections: list[str] = Field(
         default=[
             "Breaking News",
@@ -99,18 +134,34 @@ class LoggingConfig(BaseModel):
     file: Optional[Path] = Path("~/.config/evening-telegram/evening-telegram.log")
 
 
+class SubscriptionConfig(BaseModel):
+    """Configuration for a single subscription."""
+
+    name: str
+    channels: list[str]
+    schedule: ScheduleConfig
+    output: OutputConfig
+    processing: Optional[ProcessingConfig] = None
+
+
 class Config(BaseSettings):
     """Main configuration model."""
 
     telegram: TelegramConfig
-    channels: list[str]
-    period: PeriodConfig
     llm: LLMConfig
-    output: OutputConfig
+    subscriptions: dict[str, SubscriptionConfig]
+
+    # Global email config (fallback for subscriptions)
     email: Optional[EmailConfig] = None
-    processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
+
     state: StateConfig = Field(default_factory=StateConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+
+    # Legacy fields for backwards compatibility (deprecated)
+    channels: Optional[list[str]] = None
+    period: Optional[PeriodConfig] = None
+    output: Optional[OutputConfig] = None
+    processing: Optional[ProcessingConfig] = None
 
     model_config = SettingsConfigDict(
         env_prefix="EVENING_TELEGRAM_",

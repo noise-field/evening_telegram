@@ -32,6 +32,7 @@ class StateManager:
                 """
                 CREATE TABLE IF NOT EXISTS runs (
                     run_id TEXT PRIMARY KEY,
+                    subscription_id TEXT,
                     started_at TIMESTAMP NOT NULL,
                     completed_at TIMESTAMP,
                     status TEXT NOT NULL,
@@ -48,9 +49,10 @@ class StateManager:
                 CREATE TABLE IF NOT EXISTS processed_messages (
                     channel_id INTEGER NOT NULL,
                     message_id INTEGER NOT NULL,
+                    subscription_id TEXT,
                     processed_at TIMESTAMP NOT NULL,
                     run_id TEXT NOT NULL,
-                    PRIMARY KEY (channel_id, message_id),
+                    PRIMARY KEY (channel_id, message_id, subscription_id),
                     FOREIGN KEY (run_id) REFERENCES runs(run_id)
                 )
                 """
@@ -60,6 +62,20 @@ class StateManager:
                 """
                 CREATE INDEX IF NOT EXISTS idx_processed_messages_run
                 ON processed_messages(run_id)
+                """
+            )
+
+            await db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_processed_messages_subscription
+                ON processed_messages(subscription_id)
+                """
+            )
+
+            await db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_runs_subscription
+                ON runs(subscription_id)
                 """
             )
 
@@ -82,6 +98,7 @@ class StateManager:
         self,
         period_start: datetime,
         period_end: datetime,
+        subscription_id: Optional[str] = None,
     ) -> str:
         """
         Start a new run.
@@ -89,6 +106,7 @@ class StateManager:
         Args:
             period_start: Start of time period
             period_end: End of time period
+            subscription_id: Optional subscription ID for per-subscription tracking
 
         Returns:
             Run ID
@@ -99,14 +117,14 @@ class StateManager:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 """
-                INSERT INTO runs (run_id, started_at, status, period_start, period_end)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO runs (run_id, subscription_id, started_at, status, period_start, period_end)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (run_id, datetime.now(), "running", period_start, period_end),
+                (run_id, subscription_id, datetime.now(), "running", period_start, period_end),
             )
             await db.commit()
 
-        logger.info("Started run", run_id=run_id)
+        logger.info("Started run", run_id=run_id, subscription_id=subscription_id)
         return run_id
 
     async def complete_run(
@@ -138,23 +156,39 @@ class StateManager:
 
         logger.info("Run completed", run_id=run_id, status=status)
 
-    async def get_last_successful_run(self) -> Optional[tuple[datetime, datetime]]:
+    async def get_last_successful_run(
+        self, subscription_id: Optional[str] = None
+    ) -> Optional[tuple[datetime, datetime]]:
         """
         Get the time period of the last successful run.
+
+        Args:
+            subscription_id: Optional subscription ID to filter by
 
         Returns:
             Tuple of (period_start, period_end) or None
         """
         async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute(
+            if subscription_id:
+                query = """
+                    SELECT period_start, period_end
+                    FROM runs
+                    WHERE status = 'completed' AND subscription_id = ?
+                    ORDER BY completed_at DESC
+                    LIMIT 1
                 """
-                SELECT period_start, period_end
-                FROM runs
-                WHERE status = 'completed'
-                ORDER BY completed_at DESC
-                LIMIT 1
+                params = (subscription_id,)
+            else:
+                query = """
+                    SELECT period_start, period_end
+                    FROM runs
+                    WHERE status = 'completed'
+                    ORDER BY completed_at DESC
+                    LIMIT 1
                 """
-            ) as cursor:
+                params = ()
+
+            async with db.execute(query, params) as cursor:
                 row = await cursor.fetchone()
                 if row:
                     return (
@@ -163,9 +197,14 @@ class StateManager:
                     )
         return None
 
-    async def get_processed_message_ids(self) -> set[tuple[int, int]]:
+    async def get_processed_message_ids(
+        self, subscription_id: Optional[str] = None
+    ) -> set[tuple[int, int]]:
         """
         Get set of all processed message IDs.
+
+        Args:
+            subscription_id: Optional subscription ID to filter by
 
         Returns:
             Set of (channel_id, message_id) tuples
@@ -173,9 +212,18 @@ class StateManager:
         processed_ids: set[tuple[int, int]] = set()
 
         async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute(
-                "SELECT channel_id, message_id FROM processed_messages"
-            ) as cursor:
+            if subscription_id:
+                query = """
+                    SELECT channel_id, message_id
+                    FROM processed_messages
+                    WHERE subscription_id = ?
+                """
+                params = (subscription_id,)
+            else:
+                query = "SELECT channel_id, message_id FROM processed_messages"
+                params = ()
+
+            async with db.execute(query, params) as cursor:
                 async for row in cursor:
                     processed_ids.add((row[0], row[1]))
 
@@ -185,6 +233,7 @@ class StateManager:
         self,
         run_id: str,
         message_ids: list[tuple[int, int]],
+        subscription_id: Optional[str] = None,
     ) -> None:
         """
         Mark messages as processed.
@@ -192,16 +241,17 @@ class StateManager:
         Args:
             run_id: Run ID
             message_ids: List of (channel_id, message_id) tuples
+            subscription_id: Optional subscription ID for per-subscription tracking
         """
         async with aiosqlite.connect(self.db_path) as db:
             await db.executemany(
                 """
                 INSERT OR REPLACE INTO processed_messages
-                (channel_id, message_id, processed_at, run_id)
-                VALUES (?, ?, ?, ?)
+                (channel_id, message_id, subscription_id, processed_at, run_id)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                [(cid, mid, datetime.now(), run_id) for cid, mid in message_ids],
+                [(cid, mid, subscription_id, datetime.now(), run_id) for cid, mid in message_ids],
             )
             await db.commit()
 
-        logger.debug("Marked messages as processed", count=len(message_ids))
+        logger.debug("Marked messages as processed", count=len(message_ids), subscription_id=subscription_id)
