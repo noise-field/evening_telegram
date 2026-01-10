@@ -47,6 +47,20 @@ class OutputConfig(BaseModel):
     save_html: bool = True
     send_telegram: bool = True
     send_email: bool = False
+    sections: list[str] = Field(
+        default=[
+            "Breaking News",
+            "Politics",
+            "World",
+            "Business",
+            "Technology",
+            "Science",
+            "Culture",
+            "Sports",
+            "Opinion",
+            "In Brief",
+        ]
+    )
 
 
 class EmailConfig(BaseModel):

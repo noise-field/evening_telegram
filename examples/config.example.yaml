@@ -96,6 +96,21 @@ output:
   send_telegram: true
   send_email: false
 
+  # Newspaper sections order
+  # The LLM will assign articles to these sections, and they will be displayed in this order
+  # You can customize this list to match your content needs
+  sections:
+    - "Breaking News"
+    - "Politics"
+    - "World"
+    - "Business"
+    - "Technology"
+    - "Science"
+    - "Culture"
+    - "Sports"
+    - "Opinion"
+    - "In Brief"
+
 # =============================================================================
 # EMAIL CONFIGURATION (optional)
 # =============================================================================

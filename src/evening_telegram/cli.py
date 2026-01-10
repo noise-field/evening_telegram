@@ -259,19 +259,8 @@ async def run_evening_telegram(
                 sections_dict[article.section] = []
             sections_dict[article.section].append(article)
 
-        # Create sections with order
-        section_order = [
-            "Breaking News",
-            "Politics",
-            "World",
-            "Business",
-            "Technology",
-            "Science",
-            "Culture",
-            "Sports",
-            "Opinion",
-            "In Brief",
-        ]
+        # Create sections with order from config
+        section_order = cfg.output.sections
 
         sections = []
         for idx, section_name in enumerate(section_order):
