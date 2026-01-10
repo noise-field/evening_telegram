@@ -5,6 +5,7 @@ import signal
 from typing import Optional
 
 import structlog
+from telethon import TelegramClient
 
 from .config.models import Config, SubscriptionConfig
 from .llm.client import LLMClient
@@ -35,7 +36,8 @@ class EveningTelegramDaemon:
         self.config = config
         self.schedulers: dict[str, SubscriptionScheduler] = {}
         self._stop_event = asyncio.Event()
-        self._telegram_client: Optional[TelegramClientWrapper] = None
+        self._telegram_client_wrapper: Optional[TelegramClientWrapper] = None
+        self._telegram_client: Optional[TelegramClient] = None
         self._state_manager: Optional[StateManager] = None
 
     async def initialize(self) -> None:
@@ -97,16 +99,11 @@ class EveningTelegramDaemon:
                 )
 
             # Start new run
-            period_start = since_timestamp or datetime.now(timezone.utc)
-            period_end = datetime.now(timezone.utc)
+            period_start = since_timestamp or datetime.now().astimezone()
+            period_end = datetime.now().astimezone()
             run_id = await self._state_manager.start_run(
                 period_start, period_end, subscription_id=subscription_id
             )
-
-            # Create a temporary period config for fetching
-            from .config.models import PeriodConfig
-
-            period_config = PeriodConfig(lookback=subscription.schedule.lookback)
 
             # Get processing config (use subscription-specific or defaults)
             from .config.models import ProcessingConfig
@@ -122,13 +119,13 @@ class EveningTelegramDaemon:
 
             # Ensure we have a telegram client
             if self._telegram_client is None:
-                self._telegram_client = TelegramClientWrapper(self.config.telegram)
-                await self._telegram_client.__aenter__()
+                self._telegram_client_wrapper = TelegramClientWrapper(self.config.telegram)
+                self._telegram_client = await self._telegram_client_wrapper.__aenter__()
 
             messages = await fetch_messages(
                 client=self._telegram_client,
                 channels=subscription.channels,
-                period_config=period_config,
+                schedule_config=subscription.schedule,
                 processing_config=processing_config,
                 since_timestamp=since_timestamp,
                 processed_message_ids=processed_ids,
@@ -422,8 +419,8 @@ class EveningTelegramDaemon:
             await scheduler.stop()
 
         # Clean up telegram client
-        if self._telegram_client:
-            await self._telegram_client.__aexit__(None, None, None)
+        if self._telegram_client_wrapper:
+            await self._telegram_client_wrapper.__aexit__(None, None, None)
 
         logger.info("Daemon stopped")
 
@@ -431,12 +428,17 @@ class EveningTelegramDaemon:
         """Signal the daemon to stop."""
         self._stop_event.set()
 
-    def setup_signal_handlers(self) -> None:
-        """Set up signal handlers for graceful shutdown."""
+    def setup_signal_handlers(self, loop: asyncio.AbstractEventLoop) -> None:
+        """
+        Set up signal handlers for graceful shutdown.
 
-        def signal_handler(signum, frame):
-            logger.info("Received signal, stopping daemon", signal=signum)
+        Args:
+            loop: The asyncio event loop to attach signal handlers to
+        """
+        def signal_handler():
+            logger.info("Received shutdown signal, stopping daemon")
             self.stop()
 
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+        # Use asyncio's signal handlers which work properly with the event loop
+        loop.add_signal_handler(signal.SIGINT, signal_handler)
+        loop.add_signal_handler(signal.SIGTERM, signal_handler)

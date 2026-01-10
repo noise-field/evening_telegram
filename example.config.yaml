@@ -1,13 +1,30 @@
 # Example configuration file for The Evening Telegram
 # Copy this to ~/.config/evening-telegram/config.yaml and customize
+#
+# ENVIRONMENT VARIABLES:
+# Sensitive values can be provided via environment variables using the syntax:
+#   $VARIABLE_NAME:default_value
+#
+# For example:
+#   api_key: $ANTHROPIC_API_KEY:sk-default-key
+#
+# This will use the ANTHROPIC_API_KEY environment variable if set,
+# otherwise it will use "sk-default-key" as the default.
+#
+# Supported environment variables:
+#   - TELEGRAM_API_ID: Telegram MTProto API ID
+#   - TELEGRAM_API_HASH: Telegram MTProto API hash
+#   - TELEGRAM_BOT_TOKEN: Telegram bot token for sending messages
+#   - ANTHROPIC_API_KEY: LLM API key (Anthropic, OpenAI, etc.)
 
 # =============================================================================
 # TELEGRAM AUTHENTICATION
 # =============================================================================
 telegram:
   # MTProto API credentials (from https://my.telegram.org/apps)
-  api_id: 12345678
-  api_hash: "your_api_hash_here"
+  # Can be overridden with TELEGRAM_API_ID environment variable
+  api_id: $TELEGRAM_API_ID:12345678
+  api_hash: $TELEGRAM_API_HASH:your_api_hash_here
 
   # Phone number for the account (international format)
   phone: "+1234567890"
@@ -28,8 +45,8 @@ llm:
   #   - OpenRouter: https://openrouter.ai/api/v1
   base_url: "https://api.openai.com/v1"
 
-  # API key (can also be set via EVENING_TELEGRAM_LLM_API_KEY env var)
-  api_key: "sk-..."
+  # API key - can be overridden with ANTHROPIC_API_KEY environment variable
+  api_key: $ANTHROPIC_API_KEY:sk-...
 
   # Model identifier
   model: "gpt-4o"
@@ -79,8 +96,9 @@ subscriptions:
       send_email: false
 
       telegram:
-        bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-        chat_id: 123456789
+        # Bot token - can be overridden with TELEGRAM_BOT_TOKEN environment variable
+        bot_token: $TELEGRAM_BOT_TOKEN:123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+        chat_id: 123456789  # Single chat ID, or use list: [123456789, 987654321]
 
       sections:
         - "Breaking News"
@@ -119,8 +137,9 @@ subscriptions:
       send_email: true
 
       telegram:
-        bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-        chat_id: 987654321
+        # Bot token - can be overridden with TELEGRAM_BOT_TOKEN environment variable
+        bot_token: $TELEGRAM_BOT_TOKEN:123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+        chat_id: [987654321, 111222333]  # Example with multiple recipients
 
       email:
         to:
@@ -169,7 +188,8 @@ subscriptions:
       send_email: false
 
       telegram:
-        bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+        # Bot token - can be overridden with TELEGRAM_BOT_TOKEN environment variable
+        bot_token: $TELEGRAM_BOT_TOKEN:123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
         chat_id: 111222333
 
       sections:

@@ -20,7 +20,7 @@ class TelegramDeliveryConfig(BaseModel):
     """Telegram delivery configuration for a subscription."""
 
     bot_token: str
-    chat_id: int
+    chat_id: int | list[int]  # Single chat ID or list of chat IDs
 
 
 class ScheduleConfig(BaseModel):
@@ -36,14 +36,6 @@ class ScheduleConfig(BaseModel):
     time: Optional[str] = None  # e.g., "09:00"
 
     # For explicit time ranges (overrides lookback)
-    from_time: Optional[str] = Field(None, alias="from")
-    to_time: Optional[str] = Field(None, alias="to")
-
-
-class PeriodConfig(BaseModel):
-    """Time period configuration (legacy, for backwards compatibility)."""
-
-    lookback: str = "24 hours"
     from_time: Optional[str] = Field(None, alias="from")
     to_time: Optional[str] = Field(None, alias="to")
 
@@ -156,12 +148,6 @@ class Config(BaseSettings):
 
     state: StateConfig = Field(default_factory=StateConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
-
-    # Legacy fields for backwards compatibility (deprecated)
-    channels: Optional[list[str]] = None
-    period: Optional[PeriodConfig] = None
-    output: Optional[OutputConfig] = None
-    processing: Optional[ProcessingConfig] = None
 
     model_config = SettingsConfigDict(
         env_prefix="EVENING_TELEGRAM_",

@@ -7,9 +7,10 @@ from .models import (
     LLMConfig,
     LoggingConfig,
     OutputConfig,
-    PeriodConfig,
     ProcessingConfig,
+    ScheduleConfig,
     StateConfig,
+    SubscriptionConfig,
     TelegramConfig,
 )
 
@@ -19,9 +20,10 @@ __all__ = [
     "LLMConfig",
     "LoggingConfig",
     "OutputConfig",
-    "PeriodConfig",
     "ProcessingConfig",
+    "ScheduleConfig",
     "StateConfig",
+    "SubscriptionConfig",
     "TelegramConfig",
     "load_config",
 ]

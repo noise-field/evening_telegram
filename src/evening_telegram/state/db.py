@@ -27,7 +27,10 @@ class StateManager:
 
     async def initialize(self) -> None:
         """Initialize database schema."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
+            # Enable WAL mode for better concurrency and to avoid database locks
+            await db.execute("PRAGMA journal_mode=WAL")
+            await db.execute("PRAGMA busy_timeout=30000")
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS runs (
@@ -114,7 +117,7 @@ class StateManager:
         run_id = str(uuid.uuid4())
         self.current_run_id = run_id
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             await db.execute(
                 """
                 INSERT INTO runs (run_id, subscription_id, started_at, status, period_start, period_end)
@@ -143,7 +146,7 @@ class StateManager:
         """
         status = "failed" if error_message else "completed"
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             await db.execute(
                 """
                 UPDATE runs
@@ -168,7 +171,7 @@ class StateManager:
         Returns:
             Tuple of (period_start, period_end) or None
         """
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             if subscription_id:
                 query = """
                     SELECT period_start, period_end
@@ -211,7 +214,7 @@ class StateManager:
         """
         processed_ids: set[tuple[int, int]] = set()
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             if subscription_id:
                 query = """
                     SELECT channel_id, message_id
@@ -243,7 +246,7 @@ class StateManager:
             message_ids: List of (channel_id, message_id) tuples
             subscription_id: Optional subscription ID for per-subscription tracking
         """
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             await db.executemany(
                 """
                 INSERT OR REPLACE INTO processed_messages

@@ -9,7 +9,7 @@ from dateutil import parser as date_parser
 from telethon import TelegramClient
 from telethon.tl.types import Channel, Message
 
-from ..config.models import PeriodConfig, ProcessingConfig
+from ..config.models import ProcessingConfig, ScheduleConfig
 from ..models.data import MediaReference, SourceMessage
 
 logger = structlog.get_logger(__name__)
@@ -18,7 +18,7 @@ logger = structlog.get_logger(__name__)
 async def fetch_messages(
     client: TelegramClient,
     channels: list[str],
-    period_config: PeriodConfig,
+    schedule_config: ScheduleConfig,
     processing_config: ProcessingConfig,
     since_timestamp: Optional[datetime] = None,
     processed_message_ids: Optional[set[tuple[int, int]]] = None,
@@ -29,7 +29,7 @@ async def fetch_messages(
     Args:
         client: Authenticated Telegram client
         channels: List of channel usernames or IDs
-        period_config: Time period configuration
+        schedule_config: Schedule configuration (contains lookback period)
         processing_config: Processing options
         since_timestamp: Override start time (for since_last mode)
         processed_message_ids: Set of (channel_id, message_id) already processed
@@ -40,7 +40,7 @@ async def fetch_messages(
     if processed_message_ids is None:
         processed_message_ids = set()
 
-    start_time, end_time = _determine_time_window(period_config, since_timestamp)
+    start_time, end_time = _determine_time_window(schedule_config, since_timestamp)
     logger.info("Fetching messages", start_time=start_time, end_time=end_time)
 
     all_messages: list[SourceMessage] = []
@@ -70,7 +70,7 @@ async def fetch_messages(
 
 
 def _determine_time_window(
-    period_config: PeriodConfig,
+    schedule_config: ScheduleConfig,
     since_timestamp: Optional[datetime],
 ) -> tuple[datetime, datetime]:
     """Determine the time window for message fetching."""
@@ -83,9 +83,9 @@ def _determine_time_window(
         if start_time.tzinfo is None:
             start_time = start_time.replace(tzinfo=timezone.utc)
         logger.debug("Using since_timestamp", timestamp=since_timestamp)
-    elif period_config.from_time and period_config.to_time:
-        start_time = date_parser.parse(period_config.from_time)
-        end_time = date_parser.parse(period_config.to_time)
+    elif schedule_config.from_time and schedule_config.to_time:
+        start_time = date_parser.parse(schedule_config.from_time)
+        end_time = date_parser.parse(schedule_config.to_time)
         # Ensure they're timezone-aware
         if start_time.tzinfo is None:
             start_time = start_time.replace(tzinfo=timezone.utc)
@@ -93,7 +93,7 @@ def _determine_time_window(
             end_time = end_time.replace(tzinfo=timezone.utc)
         logger.debug("Using explicit time range", start_time=start_time, end_time=end_time)
     else:
-        lookback = period_config.lookback
+        lookback = schedule_config.lookback
         logger.debug("Parsing lookback", lookback=lookback)
         hours_match = re.match(r"(\d+)\s*hours?", lookback)
         days_match = re.match(r"(\d+)\s*days?", lookback)

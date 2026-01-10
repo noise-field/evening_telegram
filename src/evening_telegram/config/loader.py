@@ -1,17 +1,42 @@
 """Configuration file loader with environment variable support."""
 
-import os
+import re
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
+from envyaml import EnvYAML
 
 from .models import Config
 
 
+def _process_env_defaults(data: Any) -> Any:
+    """
+    Recursively process data to handle $VAR:default_value syntax.
+
+    EnvYAML doesn't support default values, so we handle them manually.
+    Converts strings like "$VAR:default" to just "default" when VAR is unset.
+    """
+    if isinstance(data, dict):
+        return {k: _process_env_defaults(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_process_env_defaults(item) for item in data]
+    elif isinstance(data, str):
+        # Check if this is an unresolved env var with default: $VAR:default or $VAR
+        # EnvYAML leaves these as literal strings when unset
+        match = re.match(r'^\$([A-Z_][A-Z0-9_]*):(.+)$', data)
+        if match:
+            # Return the default value (after the colon)
+            return match.group(2)
+        return data
+    else:
+        return data
+
+
 def load_config(config_path: Optional[Path] = None, overrides: Optional[dict[str, Any]] = None) -> Config:
     """
-    Load configuration from YAML file with environment variable overrides.
+    Load configuration from YAML file with environment variable support.
+
+    Supports $VAR for environment variables and $VAR:default_value for defaults.
 
     Args:
         config_path: Path to YAML configuration file
@@ -28,15 +53,24 @@ def load_config(config_path: Optional[Path] = None, overrides: Optional[dict[str
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
-    with open(config_path, "r") as f:
-        config_data = yaml.safe_load(f)
+    # Load config with environment variable substitution
+    # strict=False allows unset variables to remain as $VAR strings
+    env_config = EnvYAML(str(config_path), strict=False)
+
+    # EnvYAML acts as a dict-like object, convert to plain dict
+    # excluding environment variables by only taking keys from the YAML
+    import yaml
+    with open(config_path, 'r') as f:
+        yaml_keys = set(yaml.safe_load(f).keys())
+
+    config_data = {k: env_config[k] for k in yaml_keys if k in env_config}
+
+    # Process any remaining $VAR:default syntax for unset variables
+    config_data = _process_env_defaults(config_data)
 
     # Apply CLI overrides
     if overrides:
         config_data = _apply_overrides(config_data, overrides)
-
-    # Apply environment variable overrides
-    config_data = _apply_env_overrides(config_data)
 
     return Config(**config_data)
 
@@ -54,32 +88,4 @@ def _apply_overrides(config_data: dict[str, Any], overrides: dict[str, Any]) -> 
             current[parts[-1]] = value
         else:
             config_data[key] = value
-    return config_data
-
-
-def _apply_env_overrides(config_data: dict[str, Any]) -> dict[str, Any]:
-    """Apply environment variable overrides for sensitive values."""
-    env_mappings = {
-        "EVENING_TELEGRAM_API_ID": ("telegram", "api_id"),
-        "EVENING_TELEGRAM_API_HASH": ("telegram", "api_hash"),
-        "EVENING_TELEGRAM_BOT_TOKEN": ("telegram", "bot_token"),
-        "EVENING_TELEGRAM_LLM_API_KEY": ("llm", "api_key"),
-        "EVENING_TELEGRAM_SMTP_PASSWORD": ("email", "smtp_password"),
-    }
-
-    for env_var, path in env_mappings.items():
-        value = os.getenv(env_var)
-        if value is not None:
-            current = config_data
-            for key in path[:-1]:
-                if key not in current:
-                    current[key] = {}
-                current = current[key]
-
-            # Handle type conversion for api_id
-            if path[-1] == "api_id":
-                value = int(value)
-
-            current[path[-1]] = value
-
     return config_data

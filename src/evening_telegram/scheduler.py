@@ -48,7 +48,7 @@ class SubscriptionScheduler:
             Next scheduled run time
         """
         if current_time is None:
-            current_time = datetime.now(timezone.utc)
+            current_time = datetime.now().astimezone()
 
         # Weekly schedule
         if self.schedule.day_of_week is not None and self.schedule.time:
@@ -123,7 +123,7 @@ class SubscriptionScheduler:
             List of next N run times
         """
         run_times = []
-        current = datetime.now(timezone.utc)
+        current = datetime.now().astimezone()
 
         for _ in range(n):
             next_run = self.get_next_run_time(current)
@@ -144,7 +144,7 @@ class SubscriptionScheduler:
             try:
                 # Calculate next run time
                 next_run = self.get_next_run_time()
-                now = datetime.now(timezone.utc)
+                now = datetime.now().astimezone()
                 sleep_seconds = (next_run - now).total_seconds()
 
                 logger.info(

@@ -18,6 +18,8 @@ click==8.3.1
     # via -r requirements.in
 distro==1.9.0
     # via openai
+envyaml==1.10.211231
+    # via -r requirements.in
 h11==0.16.0
     # via httpcore
 httpcore==1.0.9
@@ -58,7 +60,9 @@ python-dotenv==1.2.1
 python-telegram-bot==22.5
     # via -r requirements.in
 pyyaml==6.0.3
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   envyaml
 rsa==4.9.1
     # via telethon
 six==1.17.0

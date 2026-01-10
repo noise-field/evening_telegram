@@ -12,6 +12,7 @@ openai>=1.0
 pydantic>=2.0
 pydantic-settings>=2.0
 pyyaml>=6.0
+envyaml>=1.10.0
 
 # CLI and terminal
 click>=8.0

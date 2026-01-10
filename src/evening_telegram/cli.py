@@ -236,7 +236,10 @@ async def run_daemon(config_path: Optional[Path], verbose: int) -> None:
 
     # Create and start daemon
     daemon_instance = EveningTelegramDaemon(cfg)
-    daemon_instance.setup_signal_handlers()
+
+    # Get the current event loop and set up signal handlers
+    loop = asyncio.get_running_loop()
+    daemon_instance.setup_signal_handlers(loop)
 
     await daemon_instance.start()
 
