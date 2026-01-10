@@ -2,6 +2,8 @@
 
 **A newspaper-style digest generator for Telegram channels**
 
+> ⚠️ This project is entirely vibe-coded as a learning project getting to know Claude Code. While it works and is somthing useful to me, code quality is not guaranteed!
+
 The Evening Telegram is a Python application that aggregates messages from Telegram channels, uses AI to deduplicate and cluster content, and generates a professionally-styled HTML newspaper. Say goodbye to information overload and FOMO-driven scrolling!
 
 ## Features
