@@ -67,7 +67,7 @@ async def send_telegram_report(
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
         )
-        logger.info(f"Successfully sent report summary to Telegram chat {chat_id}")
+        logger.info("Successfully sent report summary to Telegram", chat_id=chat_id)
 
         # Send HTML file as document attachment if provided
         if html_path and Path(html_path).exists():
@@ -79,8 +79,8 @@ async def send_telegram_report(
                     filename=filename,
                     caption="📖 Full edition",
                 )
-            logger.info(f"Successfully sent HTML file to Telegram chat {chat_id}")
+            logger.info("Successfully sent HTML file to Telegram", chat_id=chat_id, filename=filename)
 
     except Exception as e:
-        logger.error(f"Failed to send Telegram report: {e}")
+        logger.error("Failed to send Telegram report", error=str(e), error_type=type(e).__name__)
         raise

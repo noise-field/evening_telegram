@@ -41,7 +41,7 @@ async def fetch_messages(
         processed_message_ids = set()
 
     start_time, end_time = _determine_time_window(period_config, since_timestamp)
-    logger.info(f"Fetching messages from {start_time} to {end_time}")
+    logger.info("Fetching messages", start_time=start_time, end_time=end_time)
 
     all_messages: list[SourceMessage] = []
 
@@ -56,16 +56,16 @@ async def fetch_messages(
                 processed_message_ids,
             )
             all_messages.extend(messages)
-            logger.info(f"Fetched {len(messages)} messages from {channel_identifier}")
+            logger.info("Fetched messages from channel", count=len(messages), channel=channel_identifier)
         except Exception as e:
-            logger.warning(f"Failed to fetch messages from {channel_identifier}: {e}")
+            logger.warning("Failed to fetch messages from channel", channel=channel_identifier, error=str(e))
             continue
 
     # Apply max_messages limit if set
     if processing_config.max_messages > 0:
         all_messages = all_messages[: processing_config.max_messages]
 
-    logger.info(f"Total messages fetched: {len(all_messages)}")
+    logger.info("Total messages fetched", count=len(all_messages))
     return all_messages
 
 
@@ -82,7 +82,7 @@ def _determine_time_window(
         # Ensure it's timezone-aware
         if start_time.tzinfo is None:
             start_time = start_time.replace(tzinfo=timezone.utc)
-        logger.debug(f"Using since_timestamp: {since_timestamp}")
+        logger.debug("Using since_timestamp", timestamp=since_timestamp)
     elif period_config.from_time and period_config.to_time:
         start_time = date_parser.parse(period_config.from_time)
         end_time = date_parser.parse(period_config.to_time)
@@ -91,29 +91,29 @@ def _determine_time_window(
             start_time = start_time.replace(tzinfo=timezone.utc)
         if end_time.tzinfo is None:
             end_time = end_time.replace(tzinfo=timezone.utc)
-        logger.debug(f"Using explicit time range: {start_time} to {end_time}")
+        logger.debug("Using explicit time range", start_time=start_time, end_time=end_time)
     else:
         lookback = period_config.lookback
-        logger.debug(f"Parsing lookback: '{lookback}'")
+        logger.debug("Parsing lookback", lookback=lookback)
         hours_match = re.match(r"(\d+)\s*hours?", lookback)
         days_match = re.match(r"(\d+)\s*days?", lookback)
         weeks_match = re.match(r"(\d+)\s*weeks?", lookback)
 
         if hours_match:
             delta = timedelta(hours=int(hours_match.group(1)))
-            logger.debug(f"Matched hours: {hours_match.group(1)}")
+            logger.debug("Matched hours", hours=hours_match.group(1))
         elif days_match:
             delta = timedelta(days=int(days_match.group(1)))
-            logger.debug(f"Matched days: {days_match.group(1)}")
+            logger.debug("Matched days", days=days_match.group(1))
         elif weeks_match:
             delta = timedelta(weeks=int(weeks_match.group(1)))
-            logger.debug(f"Matched weeks: {weeks_match.group(1)}")
+            logger.debug("Matched weeks", weeks=weeks_match.group(1))
         else:
-            logger.warning(f"Could not parse lookback '{lookback}', defaulting to 24 hours")
+            logger.warning("Could not parse lookback, defaulting to 24 hours", lookback=lookback)
             delta = timedelta(hours=24)
 
         start_time = end_time - delta
-        logger.debug(f"Calculated time window: {start_time} to {end_time} (delta: {delta})")
+        logger.debug("Calculated time window", start_time=start_time, end_time=end_time, delta=str(delta))
 
     return start_time, end_time
 
@@ -127,16 +127,16 @@ async def _fetch_channel_messages(
     processed_message_ids: set[tuple[int, int]],
 ) -> list[SourceMessage]:
     """Fetch messages from a single channel."""
-    logger.debug(f"Starting to fetch messages from {channel_identifier}")
-    logger.debug(f"Time window: {start_time} to {end_time}")
+    logger.debug("Starting to fetch messages from channel", channel=channel_identifier)
+    logger.debug("Time window", start_time=start_time, end_time=end_time)
 
     entity = await client.get_entity(channel_identifier)
 
     if not isinstance(entity, Channel):
-        logger.warning(f"{channel_identifier} is not a channel, skipping")
+        logger.warning("Not a channel, skipping", channel=channel_identifier)
         return []
 
-    logger.debug(f"Channel entity: {entity.title} (ID: {entity.id})")
+    logger.debug("Channel entity", title=entity.title, id=entity.id)
     messages: list[SourceMessage] = []
 
     messages_checked = 0
@@ -154,27 +154,29 @@ async def _fetch_channel_messages(
         messages_checked += 1
 
         if not isinstance(message, Message):
-            logger.debug(f"Skipping non-Message object at position {messages_checked}")
+            logger.debug("Skipping non-Message object", position=messages_checked)
             continue
 
         # Log the message date for debugging
         if messages_checked <= 5 or messages_checked % 100 == 0:
-            logger.debug(f"Checked {messages_checked} messages, current message date: {message.date}")
+            logger.debug("Checked messages", count=messages_checked, current_date=message.date)
 
         # When iterating from newest to oldest (default), stop when we hit messages before start_time
         if message.date < start_time:
-            logger.debug(f"Message {message.id} date {message.date} is before start_time {start_time}, stopping iteration")
+            logger.debug("Message before start_time, stopping iteration",
+                        message_id=message.id, message_date=message.date, start_time=start_time)
             break
 
         # Skip messages after end_time (shouldn't happen but be safe)
         if message.date > end_time:
-            logger.debug(f"Message {message.id} date {message.date} is after end_time {end_time}, skipping")
+            logger.debug("Message after end_time, skipping",
+                        message_id=message.id, message_date=message.date, end_time=end_time)
             messages_skipped_time += 1
             continue
 
         # Skip if already processed
         if (entity.id, message.id) in processed_message_ids:
-            logger.debug(f"Message {message.id} already processed, skipping")
+            logger.debug("Message already processed, skipping", message_id=message.id)
             messages_skipped_already_processed += 1
             continue
 
@@ -184,7 +186,7 @@ async def _fetch_channel_messages(
             text = message.media.caption or ""
 
         if not text:
-            logger.debug(f"Message {message.id} has no text content, skipping")
+            logger.debug("Message has no text content, skipping", message_id=message.id)
             messages_skipped_no_text += 1
             continue
 
@@ -192,7 +194,7 @@ async def _fetch_channel_messages(
         is_forward = message.forward is not None
         if is_forward and not processing_config.include_external_forwards:
             if message.forward and hasattr(message.forward, "from_id"):
-                logger.debug(f"Message {message.id} is external forward, skipping")
+                logger.debug("Message is external forward, skipping", message_id=message.id)
                 messages_skipped_external_forward += 1
                 continue
 
@@ -200,15 +202,16 @@ async def _fetch_channel_messages(
         messages.append(normalized_message)
 
         if len(messages) <= 5:
-            logger.debug(f"Added message {message.id} to results (total: {len(messages)})")
+            logger.debug("Added message to results", message_id=message.id, total=len(messages))
 
-    logger.info(f"Channel {channel_identifier} stats:")
-    logger.info(f"  - Total messages checked: {messages_checked}")
-    logger.info(f"  - Messages added: {len(messages)}")
-    logger.info(f"  - Skipped (already processed): {messages_skipped_already_processed}")
-    logger.info(f"  - Skipped (no text): {messages_skipped_no_text}")
-    logger.info(f"  - Skipped (external forward): {messages_skipped_external_forward}")
-    logger.info(f"  - Skipped (time filter): {messages_skipped_time}")
+    logger.info("Channel stats",
+                channel=channel_identifier,
+                checked=messages_checked,
+                added=len(messages),
+                skipped_processed=messages_skipped_already_processed,
+                skipped_no_text=messages_skipped_no_text,
+                skipped_external=messages_skipped_external_forward,
+                skipped_time=messages_skipped_time)
 
     return messages
 

@@ -135,9 +135,17 @@ async def run_evening_telegram(
         }
         log_level = level_map.get(cfg.logging.level.upper(), logging.INFO)
 
-    # Update structlog filtering level
+    # Configure structlog with console renderer and proper log level
     structlog.configure(
+        processors=[
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.dev.ConsoleRenderer() if log_level <= logging.INFO else structlog.processors.JSONRenderer(),
+        ],
         wrapper_class=structlog.make_filtering_bound_logger(log_level),
+        context_class=dict,
+        logger_factory=structlog.PrintLoggerFactory(),
+        cache_logger_on_first_use=True,
     )
 
     # Initialize state manager

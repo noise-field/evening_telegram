@@ -73,7 +73,7 @@ class LLMClient:
             return content
 
         except Exception as e:
-            logger.error(f"LLM API error: {e}")
+            logger.error("LLM API error", error=str(e), error_type=type(e).__name__)
             raise
 
     async def chat_completion_json(
@@ -113,5 +113,7 @@ class LLMClient:
         try:
             return json.loads(content)
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON response: {content}")
+            logger.error("Failed to parse JSON response",
+                        content_preview=content[:200],
+                        error=str(e))
             raise ValueError(f"Invalid JSON response from LLM: {e}")

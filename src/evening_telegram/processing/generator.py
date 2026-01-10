@@ -68,7 +68,9 @@ async def generate_article(
     Returns:
         Generated Article or None if generation fails
     """
-    logger.info(f"Generating {cluster.suggested_type.value} article for: {cluster.topic_summary}")
+    logger.info("Generating article",
+                article_type=cluster.suggested_type.value,
+                topic=cluster.topic_summary)
 
     prompt_messages = format_article_generation_prompt(
         cluster_messages=cluster.messages,
@@ -82,7 +84,9 @@ async def generate_article(
     try:
         response = await llm_client.chat_completion_json(prompt_messages)
     except Exception as e:
-        logger.error(f"Failed to generate article for cluster {cluster.cluster_id}: {e}")
+        logger.error("Failed to generate article",
+                    cluster_id=cluster.cluster_id,
+                    error=str(e))
         return None
 
     # Extract article components
@@ -92,7 +96,7 @@ async def generate_article(
     stance_summary = response.get("stance_summary")
 
     if not body:
-        logger.warning(f"Empty article body for cluster {cluster.cluster_id}")
+        logger.warning("Empty article body", cluster_id=cluster.cluster_id)
         return None
 
     # Post-process body to make [Source: X] citations clickable
@@ -110,5 +114,5 @@ async def generate_article(
         generated_at=datetime.now(),
     )
 
-    logger.info(f"Generated article: {headline}")
+    logger.info("Generated article", headline=headline)
     return article

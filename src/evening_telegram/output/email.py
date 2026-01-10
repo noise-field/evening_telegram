@@ -62,9 +62,9 @@ async def send_email_report(
                 password=config.smtp_password,
             )
 
-        logger.info(f"Successfully sent email report to {', '.join(config.to)}")
+        logger.info("Successfully sent email report", recipients=config.to)
     except Exception as e:
-        logger.error(f"Failed to send email report: {e}")
+        logger.error("Failed to send email report", error=str(e), error_type=type(e).__name__)
         raise
 
 

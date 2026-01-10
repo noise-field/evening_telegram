@@ -53,5 +53,5 @@ def generate_html(newspaper: Newspaper, output_path: Path, channels: list[dict[s
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    logger.info(f"Generated HTML report at {output_path}")
+    logger.info("Generated HTML report", path=str(output_path))
     return str(output_path)
