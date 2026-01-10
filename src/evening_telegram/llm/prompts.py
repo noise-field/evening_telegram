@@ -16,12 +16,15 @@ CANDIDATE_SECTIONS = [
 ]
 
 
-def format_clustering_prompt(messages: list[SourceMessage]) -> list[dict[str, str]]:
+def format_clustering_prompt(
+    messages: list[SourceMessage], sections: list[str] | None = None
+) -> list[dict[str, str]]:
     """
     Format deduplication and clustering prompt.
 
     Args:
         messages: List of source messages to cluster
+        sections: Optional list of custom section names. If not provided, uses CANDIDATE_SECTIONS.
 
     Returns:
         List of message dicts for LLM API
@@ -35,6 +38,9 @@ def format_clustering_prompt(messages: list[SourceMessage]) -> list[dict[str, st
 
     messages_text = "\n\n".join(formatted_messages)
 
+    # Use custom sections if provided, otherwise fall back to defaults
+    section_list = sections if sections else CANDIDATE_SECTIONS
+
     system_prompt = f"""You are an editor at a newspaper reviewing incoming news items from multiple sources.
 
 Your task is to:
@@ -44,7 +50,7 @@ Your task is to:
    - HARD_NEWS: Factual reporting of events
    - OPINION: Commentary, editorials, or opinion pieces
    - BRIEF: Minor items not warranting a full article
-4. CATEGORIZE: Suggest a newspaper section for each topic from: {', '.join(CANDIDATE_SECTIONS)}
+4. CATEGORIZE: Suggest a newspaper section for each topic from: {', '.join(section_list)}
 
 Messages from the SAME channel reporting on the same story are updates, not duplicates—keep them together in one topic.
 

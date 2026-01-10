@@ -15,6 +15,7 @@ async def deduplicate_and_cluster(
     messages: list[SourceMessage],
     llm_client: LLMClient,
     batch_size: int = 50,
+    sections: list[str] | None = None,
 ) -> list[MessageCluster]:
     """
     Use LLM to identify duplicate content and cluster into topics.
@@ -23,6 +24,7 @@ async def deduplicate_and_cluster(
         messages: List of source messages to cluster
         llm_client: LLM client for API calls
         batch_size: Size of batches for large volumes
+        sections: Optional list of custom section names to use for categorization
 
     Returns:
         List of message clusters
@@ -34,10 +36,10 @@ async def deduplicate_and_cluster(
 
     if len(messages) <= batch_size:
         # Process all messages in single batch
-        clusters = await _cluster_batch(messages, llm_client)
+        clusters = await _cluster_batch(messages, llm_client, sections)
     else:
         # Process in multiple batches and merge
-        clusters = await _process_large_batch(messages, llm_client, batch_size)
+        clusters = await _process_large_batch(messages, llm_client, batch_size, sections)
 
     logger.info("Created clusters", count=len(clusters))
     return clusters
@@ -46,6 +48,7 @@ async def deduplicate_and_cluster(
 async def _cluster_batch(
     messages: list[SourceMessage],
     llm_client: LLMClient,
+    sections: list[str] | None = None,
 ) -> list[MessageCluster]:
     """
     Cluster a single batch of messages.
@@ -53,11 +56,12 @@ async def _cluster_batch(
     Args:
         messages: List of source messages
         llm_client: LLM client
+        sections: Optional list of custom section names
 
     Returns:
         List of message clusters
     """
-    prompt_messages = format_clustering_prompt(messages)
+    prompt_messages = format_clustering_prompt(messages, sections)
 
     try:
         response = await llm_client.chat_completion_json(prompt_messages)
@@ -81,6 +85,7 @@ async def _process_large_batch(
     messages: list[SourceMessage],
     llm_client: LLMClient,
     batch_size: int,
+    sections: list[str] | None = None,
 ) -> list[MessageCluster]:
     """
     Process large message volumes by batching and merging.
@@ -89,6 +94,7 @@ async def _process_large_batch(
         messages: List of source messages
         llm_client: LLM client
         batch_size: Size of each batch
+        sections: Optional list of custom section names
 
     Returns:
         Merged list of message clusters
@@ -101,7 +107,7 @@ async def _process_large_batch(
     all_clusters: list[MessageCluster] = []
     for batch_idx, batch in enumerate(batches):
         logger.info("Processing batch", batch=batch_idx + 1, total=len(batches))
-        batch_clusters = await _cluster_batch(batch, llm_client)
+        batch_clusters = await _cluster_batch(batch, llm_client, sections)
 
         # Prefix cluster IDs with batch number
         for cluster in batch_clusters:

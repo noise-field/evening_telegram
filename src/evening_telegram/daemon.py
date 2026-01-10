@@ -152,6 +152,7 @@ class EveningTelegramDaemon:
                 messages=messages,
                 llm_client=llm_client,
                 batch_size=processing_config.clustering_batch_size,
+                sections=subscription.output.sections,
             )
             logger.info(
                 "Created topic clusters",
