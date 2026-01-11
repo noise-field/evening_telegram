@@ -47,7 +47,6 @@ state.db-journal
 
 # Generated output
 editions/
-*.html
 *.pdf
 
 # Logs

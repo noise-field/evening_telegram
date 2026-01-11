@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ newspaper.title }} - {{ newspaper.edition_date.strftime('%B %d, %Y') }}</title>
+    <style>
+        :root {
+            --font-headline: Charter, Georgia, "Times New Roman", serif;
+            --font-body: Charter, Georgia, "Times New Roman", serif;
+            --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+            --color-text: #1a1a1a;
+            --color-text-secondary: #666;
+            --color-accent: #326891;
+            --color-border: #e0e0e0;
+            --color-background: #fff;
+            --color-background-alt: #f7f7f7;
+
+            --max-width: 1200px;
+            --article-max-width: 720px;
+        }
+
+        [data-theme="dark"] {
+            --color-text: #e0e0e0;
+            --color-text-secondary: #a0a0a0;
+            --color-accent: #5ba3d0;
+            --color-border: #3a3a3a;
+            --color-background: #1a1a1a;
+            --color-background-alt: #2a2a2a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            color: var(--color-text);
+            background: var(--color-background);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .masthead {
+            border-bottom: 4px double var(--color-border);
+            padding: 2rem 1rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .masthead-content {
+            max-width: var(--max-width);
+            margin: 0 auto;
+        }
+
+        .dark-mode-toggle {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--color-background-alt);
+            border: 2px solid var(--color-border);
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--color-text);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dark-mode-toggle:hover {
+            background: var(--color-accent);
+            color: var(--color-background);
+            border-color: var(--color-accent);
+        }
+
+        .dark-mode-toggle::before {
+            content: "☀️";
+            font-size: 1rem;
+        }
+
+        [data-theme="dark"] .dark-mode-toggle::before {
+            content: "🌙";
+        }
+
+        .newspaper-name {
+            font-family: var(--font-headline);
+            font-size: 3rem;
+            font-weight: 900;
+            margin: 0;
+            letter-spacing: -0.02em;
+        }
+
+        .tagline {
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            margin: 0.5rem 0;
+            font-style: italic;
+        }
+
+        .edition-info {
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            margin-top: 1rem;
+        }
+
+        .edition-info .period {
+            display: inline-block;
+            margin-left: 1rem;
+        }
+
+        .section-nav {
+            background: var(--color-background-alt);
+            border-bottom: 1px solid var(--color-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .section-nav ul {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .section-nav li {
+            margin: 0;
+        }
+
+        .section-nav a {
+            display: block;
+            padding: 0.75rem 1rem;
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            color: var(--color-text);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: color 0.2s;
+        }
+
+        .section-nav a:hover {
+            color: var(--color-accent);
+        }
+
+        .content {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .newspaper-section {
+            margin-bottom: 4rem;
+        }
+
+        .section-header {
+            font-family: var(--font-headline);
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-bottom: 2px solid var(--color-text);
+            padding-bottom: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .articles-grid {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .article {
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 2rem;
+        }
+
+        .article:last-child {
+            border-bottom: none;
+        }
+
+        .article-header {
+            margin-bottom: 1rem;
+        }
+
+        .headline {
+            font-family: var(--font-headline);
+            font-size: 1.75rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .article:first-child .headline {
+            font-size: 2.5rem;
+        }
+
+        .subheadline {
+            font-family: var(--font-headline);
+            font-size: 1.125rem;
+            font-weight: 400;
+            color: var(--color-text-secondary);
+            margin: 0.5rem 0;
+            line-height: 1.4;
+        }
+
+        .article-meta {
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        .article-body {
+            font-size: 1.0625rem;
+            line-height: 1.7;
+        }
+
+        .article-body p {
+            margin: 0 0 1rem 0;
+        }
+
+        .article-opinion {
+            border-left: 4px solid var(--color-accent);
+            padding-left: 1rem;
+        }
+
+        .article-opinion .article-header::before {
+            content: "OPINION";
+            display: block;
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--color-accent);
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .article-brief .headline {
+            font-size: 1.25rem;
+        }
+
+        .article-brief .article-body {
+            font-size: 1rem;
+        }
+
+        .article-footer {
+            margin-top: 1rem;
+        }
+
+        .source-details {
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+
+        .source-details summary {
+            cursor: pointer;
+            color: var(--color-accent);
+            user-select: none;
+        }
+
+        .source-details summary:hover {
+            text-decoration: underline;
+        }
+
+        .source-list {
+            list-style: none;
+            padding: 0.5rem 0 0 0;
+            margin: 0;
+        }
+
+        .source-list li {
+            margin: 0.25rem 0;
+        }
+
+        .source-list a {
+            color: var(--color-accent);
+            text-decoration: none;
+        }
+
+        .source-list a:hover {
+            text-decoration: underline;
+        }
+
+        .source-list time {
+            color: var(--color-text-secondary);
+            font-size: 0.8125rem;
+            margin-left: 0.5rem;
+        }
+
+        .forward-note {
+            font-style: italic;
+            color: var(--color-text-secondary);
+        }
+
+        .newspaper-footer {
+            background: var(--color-background-alt);
+            border-top: 1px solid var(--color-border);
+            padding: 2rem 1rem;
+            margin-top: 4rem;
+        }
+
+        .newspaper-footer > * {
+            max-width: var(--max-width);
+            margin: 0 auto;
+        }
+
+        .generation-info {
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            text-align: center;
+        }
+
+        .generation-info p {
+            margin: 0.5rem 0;
+        }
+
+        .token-usage {
+            font-family: monospace;
+            font-size: 0.8125rem;
+        }
+
+        .channel-list {
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .channel-list summary {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .channel-list ul {
+            list-style: none;
+            padding: 0.5rem 0;
+            margin: 0;
+        }
+
+        .channel-list li {
+            margin: 0.25rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .newspaper-name {
+                font-size: 2rem;
+            }
+
+            .headline {
+                font-size: 1.5rem;
+            }
+
+            .article:first-child .headline {
+                font-size: 2rem;
+            }
+
+            .section-nav ul {
+                flex-direction: column;
+            }
+
+            .dark-mode-toggle {
+                position: fixed;
+                top: auto;
+                bottom: 1rem;
+                right: 1rem;
+                z-index: 1000;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="masthead">
+        <button class="dark-mode-toggle" id="darkModeToggle" aria-label="Toggle dark mode">
+            <span id="themeLabel">Dark Mode</span>
+        </button>
+        <div class="masthead-content">
+            <h1 class="newspaper-name">{{ newspaper.title }}</h1>
+            <p class="tagline">{{ newspaper.tagline }}</p>
+            <div class="edition-info">
+                <time datetime="{{ newspaper.edition_date.isoformat() }}">
+                    {{ newspaper.edition_date.strftime('%A, %B %d, %Y') }}
+                </time>
+                <span class="period">
+                    Covering {{ newspaper.period_start.strftime('%b %d, %H:%M') }} to {{ newspaper.period_end.strftime('%b %d, %Y %H:%M') }}
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <nav class="section-nav">
+        <ul>
+            {% for section in newspaper.sections %}
+            <li><a href="#section-{{ section.name|lower|replace(' ', '-') }}">{{ section.name }}</a></li>
+            {% endfor %}
+        </ul>
+    </nav>
+
+    <main class="content">
+        {% for section in newspaper.sections %}
+        <section id="section-{{ section.name|lower|replace(' ', '-') }}" class="newspaper-section">
+            <h2 class="section-header">{{ section.name }}</h2>
+
+            <div class="articles-grid">
+                {% for article in section.articles %}
+                <article class="article article-{{ article.article_type.value|replace('_', '-') }}">
+                    <header class="article-header">
+                        <h3 class="headline">{{ article.headline }}</h3>
+                        {% if article.subheadline %}
+                        <p class="subheadline">{{ article.subheadline }}</p>
+                        {% endif %}
+                        <div class="article-meta">
+                            <span class="sources">
+                                Sources: {{ article.source_channels|join(', ') }}
+                            </span>
+                        </div>
+                    </header>
+
+                    <div class="article-body">
+                        {{ article.body|safe }}
+                    </div>
+
+                    <footer class="article-footer">
+                        <details class="source-details">
+                            <summary>View sources ({{ article.all_sources|length }})</summary>
+                            <ul class="source-list">
+                                {% for source in article.all_sources %}
+                                <li>
+                                    <a href="{{ source.telegram_link }}" target="_blank" rel="noopener">
+                                        {{ source.channel_title }}
+                                    </a>
+                                    <time>{{ source.timestamp.strftime('%b %d, %H:%M') }}</time>
+                                    {% if source.is_forward and source.forward_from_title %}
+                                    <span class="forward-note">
+                                        (via {{ source.forward_from_title }})
+                                    </span>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    </footer>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </main>
+
+    <footer class="newspaper-footer">
+        <div class="generation-info">
+            <p>
+                Generated by The Evening Telegram on {{ newspaper.edition_date.strftime('%B %d, %Y at %H:%M') }}
+            </p>
+            <p class="stats">
+                {{ newspaper.total_messages_processed }} messages from {{ newspaper.total_channels }} channels
+                processed into {{ newspaper.total_articles }} articles.
+            </p>
+            <p class="token-usage">
+                LLM Usage: {{ newspaper.token_usage.total_tokens }} tokens
+                ({{ newspaper.token_usage.prompt_tokens }} prompt + {{ newspaper.token_usage.completion_tokens }} completion)
+                across {{ newspaper.token_usage.api_calls }} API calls.
+            </p>
+        </div>
+
+        <details class="channel-list">
+            <summary>Monitored Channels</summary>
+            <ul>
+                {% for channel in channels %}
+                <li>{{ channel.title }} ({{ channel.username }})</li>
+                {% endfor %}
+            </ul>
+        </details>
+    </footer>
+
+    <script>
+        // Dark mode toggle functionality
+        (function() {
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            const themeLabel = document.getElementById('themeLabel');
+            const htmlElement = document.documentElement;
+
+            // Check for saved theme preference or default to light mode
+            const currentTheme = localStorage.getItem('theme') || 'light';
+
+            // Apply the saved theme on page load
+            if (currentTheme === 'dark') {
+                htmlElement.setAttribute('data-theme', 'dark');
+                themeLabel.textContent = 'Light Mode';
+            } else {
+                themeLabel.textContent = 'Dark Mode';
+            }
+
+            // Toggle theme on button click
+            darkModeToggle.addEventListener('click', function() {
+                const theme = htmlElement.getAttribute('data-theme');
+
+                if (theme === 'dark') {
+                    htmlElement.removeAttribute('data-theme');
+                    localStorage.setItem('theme', 'light');
+                    themeLabel.textContent = 'Dark Mode';
+                } else {
+                    htmlElement.setAttribute('data-theme', 'dark');
+                    localStorage.setItem('theme', 'dark');
+                    themeLabel.textContent = 'Light Mode';
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
