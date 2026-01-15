@@ -121,7 +121,6 @@
         .section-nav {
             background: var(--color-background-alt);
             border-bottom: 1px solid var(--color-border);
-            position: sticky;
             top: 0;
             z-index: 100;
         }
@@ -397,7 +396,7 @@
                     {{ newspaper.edition_date.strftime('%A, %B %d, %Y') }}
                 </time>
                 <span class="period">
-                    Covering {{ newspaper.period_start.strftime('%b %d, %H:%M') }} to {{ newspaper.period_end.strftime('%b %d, %Y %H:%M') }}
+                    Covering {{ newspaper.period_start|to_tz|strftime('%b %d, %H:%M') }} to {{ newspaper.period_end|to_tz|strftime('%b %d, %Y %H:%M') }}
                 </span>
             </div>
         </div>
@@ -444,7 +443,7 @@
                                     <a href="{{ source.telegram_link }}" target="_blank" rel="noopener">
                                         {{ source.channel_title }}
                                     </a>
-                                    <time>{{ source.timestamp.strftime('%b %d, %H:%M') }}</time>
+                                    <time>{{ source.timestamp|to_tz|strftime('%b %d, %H:%M') }}</time>
                                     {% if source.is_forward and source.forward_from_title %}
                                     <span class="forward-note">
                                         (via {{ source.forward_from_title }})

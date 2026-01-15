@@ -69,6 +69,7 @@ class OutputConfig(BaseModel):
     save_html: bool = True
     send_telegram: bool = True
     send_email: bool = False
+    timezone: str = "local"  # "local" for system timezone, or IANA timezone like "America/New_York", "Europe/London"
 
     # Optional per-subscription delivery configs
     telegram: Optional[TelegramDeliveryConfig] = None

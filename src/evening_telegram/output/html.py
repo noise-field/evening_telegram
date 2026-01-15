@@ -1,6 +1,8 @@
 """HTML output generation using Jinja2."""
 
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import structlog
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -10,7 +12,15 @@ from ..models.data import Newspaper
 logger = structlog.get_logger(__name__)
 
 
-def generate_html(newspaper: Newspaper, output_path: Path, channels: list[dict[str, str]]) -> str:
+def _to_timezone(dt: datetime, tz: str) -> datetime:
+    """Convert datetime to specified timezone."""
+    if tz == "local":
+        return dt.astimezone()
+    else:
+        return dt.astimezone(ZoneInfo(tz))
+
+
+def generate_html(newspaper: Newspaper, output_path: Path, channels: list[dict[str, str]], timezone: str = "local") -> str:
     """
     Generate HTML newspaper from data.
 
@@ -18,6 +28,7 @@ def generate_html(newspaper: Newspaper, output_path: Path, channels: list[dict[s
         newspaper: Newspaper data
         output_path: Path to save HTML file
         channels: List of channel info dicts
+        timezone: Target timezone for timestamp display ("local" or IANA timezone name)
 
     Returns:
         Path to generated HTML file as string
@@ -29,6 +40,10 @@ def generate_html(newspaper: Newspaper, output_path: Path, channels: list[dict[s
         autoescape=select_autoescape(["html", "xml"]),
     )
 
+    # Add custom filters
+    env.filters['to_tz'] = lambda dt: _to_timezone(dt, timezone)
+    env.filters['strftime'] = lambda dt, fmt: dt.strftime(fmt)
+
     template = env.get_template("newspaper.html")
 
     # Render template
@@ -36,6 +51,7 @@ def generate_html(newspaper: Newspaper, output_path: Path, channels: list[dict[s
         newspaper=newspaper,
         language=newspaper.language,
         channels=channels,
+        timezone=timezone,
     )
 
     # Prepare output path (expand ~ and handle strftime formatting)

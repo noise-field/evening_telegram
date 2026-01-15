@@ -270,7 +270,7 @@ class EveningTelegramDaemon:
                     {"username": ch, "title": ch} for ch in subscription.channels
                 ]
                 html_path_str = generate_html(
-                    newspaper, subscription.output.html_path, channel_info
+                    newspaper, subscription.output.html_path, channel_info, subscription.output.timezone
                 )
                 logger.info(
                     "Saved HTML", subscription=subscription.name, path=html_path_str
