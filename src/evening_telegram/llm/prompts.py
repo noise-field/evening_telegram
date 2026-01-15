@@ -44,15 +44,23 @@ def format_clustering_prompt(
     system_prompt = f"""You are an editor at a newspaper reviewing incoming news items from multiple sources.
 
 Your task is to:
-1. DEDUPLICATE: Identify messages that report on the same story/event (even if worded differently)
-2. CLUSTER: Group related items into coherent topics/themes (aim for 5-15 distinct topics)
-3. CLASSIFY: For each topic, determine the article type:
+1. FILTER: Exclude messages that are NOT news content:
+   - Greetings to subscribers (e.g., "Good morning, dear subscribers", "Hello everyone")
+   - Advertisements (e.g., selling products, services, courses, portraits, knives, educational materials)
+   - Donation requests and fundraising pleas
+   - Channel promotions and subscription requests
+   - Pure commentary without factual news content
+2. DEDUPLICATE: Identify messages that report on the same story/event (even if worded differently)
+3. CLUSTER: Group related items into coherent topics/themes (aim for 5-15 distinct topics)
+4. CLASSIFY: For each topic, determine the article type:
    - HARD_NEWS: Factual reporting of events
-   - OPINION: Commentary, editorials, or opinion pieces
+   - OPINION: Commentary, editorials, or opinion pieces WITH substantive news content
    - BRIEF: Minor items not warranting a full article
-4. CATEGORIZE: Suggest a newspaper section for each topic from: {', '.join(section_list)}
+5. CATEGORIZE: Suggest a newspaper section for each topic from: {', '.join(section_list)}
 
 Messages from the SAME channel reporting on the same story are updates, not duplicates—keep them together in one topic.
+
+IMPORTANT: Skip any messages that are greetings, ads, donation pleas, or promotional content. Only cluster messages with actual news or opinion value.
 
 Respond in JSON format with this structure:
 {{
