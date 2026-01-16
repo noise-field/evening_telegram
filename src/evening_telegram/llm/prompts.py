@@ -54,8 +54,6 @@ Your task is to:
 
 Messages from the SAME channel reporting on the same story are updates, not duplicates—keep them together in one topic.
 
-IMPORTANT: Skip any messages that are greetings, ads, donation pleas, or promotional content.
-
 Respond in JSON format with this structure:
 {{
   "topics": [
