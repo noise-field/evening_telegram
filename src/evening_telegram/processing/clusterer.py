@@ -6,6 +6,7 @@ import structlog
 
 from ..llm.client import LLMClient
 from ..llm.prompts import format_clustering_prompt, format_merge_clusters_prompt
+from ..llm.schemas import ClusteringResponse, MergeResponse
 from ..models.data import ArticleType, MessageCluster, SourceMessage
 
 logger = structlog.get_logger(__name__)
@@ -64,17 +65,32 @@ async def _cluster_batch(
     prompt_messages = format_clustering_prompt(messages, sections)
 
     try:
-        response = await llm_client.chat_completion_json(prompt_messages)
+        if llm_client.config.structured_output:
+            # Use structured output API with Pydantic schema
+            response = await llm_client.chat_completion_structured(
+                prompt_messages,
+                response_format=ClusteringResponse,
+            )
+            topics = response.topics
+        else:
+            # Use traditional JSON mode
+            response_dict = await llm_client.chat_completion_json(prompt_messages)
+            topics = response_dict.get("topics", [])
     except Exception as e:
         logger.error("Failed to cluster messages", error=str(e))
         # Fallback: create one cluster per message
         return _create_fallback_clusters(messages)
 
-    topics = response.get("topics", [])
     clusters = []
 
     for topic in topics:
-        cluster = _create_cluster_from_topic(topic, messages)
+        # Handle both Pydantic models and dicts
+        if hasattr(topic, "model_dump"):
+            topic_dict = topic.model_dump()
+        else:
+            topic_dict = topic
+
+        cluster = _create_cluster_from_topic(topic_dict, messages)
         if cluster:
             clusters.append(cluster)
 
@@ -154,7 +170,19 @@ async def _merge_clusters(
     prompt_messages = format_merge_clusters_prompt(cluster_summaries)
 
     try:
-        response = await llm_client.chat_completion_json(prompt_messages)
+        if llm_client.config.structured_output:
+            # Use structured output API with Pydantic schema
+            response = await llm_client.chat_completion_structured(
+                prompt_messages,
+                response_format=MergeResponse,
+            )
+            merges_list = [m.model_dump() for m in response.merges]
+            unchanged = response.unchanged
+        else:
+            # Use traditional JSON mode
+            response_dict = await llm_client.chat_completion_json(prompt_messages)
+            merges_list = response_dict.get("merges", [])
+            unchanged = response_dict.get("unchanged", [])
     except Exception as e:
         logger.warning("Failed to merge clusters, using unmerged clusters", error=str(e))
         return clusters
@@ -162,14 +190,10 @@ async def _merge_clusters(
     # Build cluster lookup
     cluster_map = {c.cluster_id: c for c in clusters}
 
-    # Apply merges
-    merges = response.get("merges", [])
-    unchanged = response.get("unchanged", [])
-
     result_clusters: list[MessageCluster] = []
 
     # Process merges
-    for merge in merges:
+    for merge in merges_list:
         keep_id = merge["keep"]
         merge_ids = merge["merge_into_it"]
 

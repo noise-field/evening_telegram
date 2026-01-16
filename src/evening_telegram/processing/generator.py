@@ -8,6 +8,7 @@ import structlog
 
 from ..llm.client import LLMClient
 from ..llm.prompts import format_article_generation_prompt
+from ..llm.schemas import ArticleResponse
 from ..models.data import Article, MessageCluster, SourceMessage
 
 logger = structlog.get_logger(__name__)
@@ -82,18 +83,28 @@ async def generate_article(
     )
 
     try:
-        response = await llm_client.chat_completion_json(prompt_messages)
+        if llm_client.config.structured_output:
+            # Use structured output API with Pydantic schema
+            response = await llm_client.chat_completion_structured(
+                prompt_messages,
+                response_format=ArticleResponse,
+            )
+            headline = response.headline
+            subheadline = response.subheadline
+            body = response.body
+            stance_summary = response.stance_summary
+        else:
+            # Use traditional JSON mode
+            response_dict = await llm_client.chat_completion_json(prompt_messages)
+            headline = response_dict.get("headline", "Untitled")
+            subheadline = response_dict.get("subheadline")
+            body = response_dict.get("body", "")
+            stance_summary = response_dict.get("stance_summary")
     except Exception as e:
         logger.error("Failed to generate article",
                     cluster_id=cluster.cluster_id,
                     error=str(e))
         return None
-
-    # Extract article components
-    headline = response.get("headline", "Untitled")
-    subheadline = response.get("subheadline")
-    body = response.get("body", "")
-    stance_summary = response.get("stance_summary")
 
     if not body:
         logger.warning("Empty article body", cluster_id=cluster.cluster_id)

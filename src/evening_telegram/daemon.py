@@ -12,7 +12,7 @@ from .llm.client import LLMClient
 from .llm.tracker import TokenTracker
 from .models.data import Article, ArticleType, Newspaper, NewspaperSection
 from .output import generate_html, send_email_report
-from .processing import deduplicate_and_cluster, generate_article
+from .processing import deduplicate_and_cluster, filter_messages, generate_article
 from .scheduler import SubscriptionScheduler
 from .state import StateManager
 from .telegram import TelegramClientWrapper, fetch_messages, send_telegram_report
@@ -146,10 +146,31 @@ class EveningTelegramDaemon:
             token_tracker = TokenTracker()
             llm_client = LLMClient(self.config.llm, token_tracker)
 
+            # Filter out trash content (ads, greetings, etc.)
+            logger.info("Filtering messages", subscription=subscription.name)
+            legitimate_messages, trash_messages = await filter_messages(
+                messages=messages,
+                llm_client=llm_client,
+                batch_size=processing_config.clustering_batch_size,
+            )
+            logger.info(
+                "Filtered messages",
+                subscription=subscription.name,
+                legitimate=len(legitimate_messages),
+                trash=len(trash_messages),
+            )
+
+            if not legitimate_messages:
+                logger.warning(
+                    "No legitimate messages after filtering", subscription=subscription.name
+                )
+                await self._state_manager.complete_run(run_id, len(messages))
+                return
+
             # Cluster messages
             logger.info("Clustering messages", subscription=subscription.name)
             clusters = await deduplicate_and_cluster(
-                messages=messages,
+                messages=legitimate_messages,
                 llm_client=llm_client,
                 batch_size=processing_config.clustering_batch_size,
                 sections=subscription.output.sections,

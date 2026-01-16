@@ -73,6 +73,13 @@ llm:
   # Request timeout in seconds
   timeout: 120
 
+  # Enable Structured Output mode (OpenAI API feature for gpt-4o and later)
+  # When enabled, uses the native structured output API with Pydantic schemas
+  # This provides guaranteed JSON schema compliance and better reliability
+  # Note: Only works with OpenAI models that support structured outputs
+  # For other models, leave this as false to use traditional JSON mode
+  structured_output: false
+
 # =============================================================================
 # OUTPUT CONFIGURATION
 # =============================================================================

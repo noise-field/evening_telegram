@@ -49,6 +49,7 @@ class LLMConfig(BaseModel):
     temperature: float = 0.3
     max_tokens: int = 4096
     timeout: int = 120
+    structured_output: bool = False  # Enable Structured Output mode for supported models
 
 
 class SubscriptionEmailConfig(BaseModel):

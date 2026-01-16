@@ -134,7 +134,19 @@ llm:
   api_key: "sk-..."
   model: "gpt-4o"
   temperature: 0.3
+  max_tokens: 4096
+  timeout: 120
+  structured_output: false  # Enable for OpenAI models with structured output support
 ```
+
+**Structured Output Support:**
+The `structured_output` option enables OpenAI's native Structured Output API, which guarantees JSON schema compliance using Pydantic models. This feature:
+- Provides more reliable JSON responses (no parsing errors)
+- Ensures strict adherence to expected response schemas
+- Works with OpenAI models that support structured outputs (gpt-4o and later)
+- Falls back to traditional JSON mode when disabled
+
+For non-OpenAI models or models without structured output support, keep this set to `false`.
 
 #### Subscriptions (Multiple Supported)
 ```yaml
@@ -185,6 +197,29 @@ subscriptions:
         bot_token: "123456:ABC-DEF..."
         chat_id: 987654321
 ```
+
+### Structured Output Support
+
+The Evening Telegram supports OpenAI's Structured Output API for more reliable JSON responses. When enabled:
+
+- **Guaranteed Schema Compliance**: Responses are validated against Pydantic schemas, ensuring they always match the expected format
+- **No JSON Parsing Errors**: The API handles JSON formatting natively, eliminating common parsing issues
+- **Better Reliability**: Especially helpful for complex JSON structures like article generation and topic clustering
+
+To enable structured output, set `structured_output: true` in your LLM configuration:
+
+```yaml
+llm:
+  base_url: "https://api.openai.com/v1"
+  model: "gpt-4o"
+  structured_output: true  # Enable for supported models
+```
+
+**Compatibility:**
+- ✅ Works with: OpenAI's gpt-4o, gpt-4o-mini, and newer models with structured output support
+- ❌ Not supported by: Claude models, older GPT models, local models (Ollama), most third-party providers
+
+When `structured_output` is disabled (default), the application uses traditional JSON mode with manual parsing, which works with all OpenAI-compatible APIs.
 
 ### Environment Variables
 

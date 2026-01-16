@@ -241,3 +241,60 @@ Respond in JSON format:
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
     ]
+
+
+def format_content_filter_prompt(messages: list[SourceMessage]) -> list[dict[str, str]]:
+    """
+    Format content filtering prompt to identify legitimate content vs trash.
+
+    Args:
+        messages: List of source messages to filter
+
+    Returns:
+        List of message dicts for LLM API
+    """
+    formatted_messages = []
+    for i, msg in enumerate(messages, 1):
+        formatted_messages.append(
+            f"[{i}] {msg.channel_title}: {msg.text[:500]}"
+            + ("..." if len(msg.text) > 500 else "")
+        )
+
+    messages_text = "\n\n".join(formatted_messages)
+
+    system_prompt = """You are a content moderator filtering messages for a news aggregation service.
+
+Your task is to classify each message as either LEGITIMATE or TRASH:
+
+LEGITIMATE content includes:
+- News articles and reports
+- Expert commentary and analysis
+- Official announcements
+- Opinion pieces and editorials
+- Informative content
+
+TRASH content includes:
+- Advertisements and promotional content
+- Greetings (good morning, good evening, etc.)
+- Wishes (good night, happy weekend, etc.)
+- Social pleasantries
+- Pure spam or irrelevant content
+- Channel self-promotion unrelated to news
+
+Be strict: when in doubt about ads or greetings, classify as TRASH.
+Only messages with actual informational value should be marked LEGITIMATE.
+
+Respond in JSON format:
+{
+  "legitimate": [1, 3, 5, 7],
+  "trash": [2, 4, 6, 8]
+}
+
+The numbers are the message IDs from the input."""
+
+    user_prompt = f"Messages to classify:\n\n{messages_text}"
+
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]

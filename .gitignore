@@ -67,3 +67,4 @@ Thumbs.db
 .claude/
 
 config.yaml
+config.*.yaml
