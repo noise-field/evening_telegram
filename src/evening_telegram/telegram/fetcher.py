@@ -22,6 +22,7 @@ async def fetch_messages(
     processing_config: ProcessingConfig,
     since_timestamp: Optional[datetime] = None,
     processed_message_ids: Optional[set[tuple[int, int]]] = None,
+    lookback_override: Optional[str] = None,
 ) -> list[SourceMessage]:
     """
     Fetch messages from specified channels within time period.
@@ -33,6 +34,7 @@ async def fetch_messages(
         processing_config: Processing options
         since_timestamp: Override start time (for since_last mode)
         processed_message_ids: Set of (channel_id, message_id) already processed
+        lookback_override: Override lookback value (e.g., for per-time lookback)
 
     Returns:
         List of normalized source messages
@@ -40,7 +42,7 @@ async def fetch_messages(
     if processed_message_ids is None:
         processed_message_ids = set()
 
-    start_time, end_time = _determine_time_window(schedule_config, since_timestamp)
+    start_time, end_time = _determine_time_window(schedule_config, since_timestamp, lookback_override)
     logger.info("Fetching messages", start_time=start_time, end_time=end_time)
 
     all_messages: list[SourceMessage] = []
@@ -72,6 +74,7 @@ async def fetch_messages(
 def _determine_time_window(
     schedule_config: ScheduleConfig,
     since_timestamp: Optional[datetime],
+    lookback_override: Optional[str] = None,
 ) -> tuple[datetime, datetime]:
     """Determine the time window for message fetching."""
     # CRITICAL FIX: Use timezone-aware datetime to match Telegram message timestamps
@@ -93,8 +96,9 @@ def _determine_time_window(
             end_time = end_time.replace(tzinfo=timezone.utc)
         logger.debug("Using explicit time range", start_time=start_time, end_time=end_time)
     else:
-        lookback = schedule_config.lookback
-        logger.debug("Parsing lookback", lookback=lookback)
+        # Use lookback_override if provided, otherwise use schedule_config.lookback
+        lookback = lookback_override if lookback_override else schedule_config.lookback
+        logger.debug("Parsing lookback", lookback=lookback, is_override=bool(lookback_override))
         hours_match = re.match(r"(\d+)\s*hours?", lookback)
         days_match = re.match(r"(\d+)\s*days?", lookback)
         weeks_match = re.match(r"(\d+)\s*weeks?", lookback)

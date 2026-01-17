@@ -169,14 +169,24 @@ subscriptions:
 
     # Report generation schedule
     schedule:
-      # How far back to look for messages when generating reports
+      # Default lookback period (used when time entry doesn't specify one)
       lookback: "12 hours"
 
       # Time(s) to generate reports (24-hour format)
       # Can specify multiple times for multiple reports per day
+      # Each time can optionally have its own lookback period
       times:
-        - "10:00"  # Morning briefing at 10 AM
-        - "22:00"  # Evening briefing at 10 PM
+        - "10:00"  # Morning briefing - uses default lookback (12 hours)
+        - "22:00"  # Evening briefing - uses default lookback (12 hours)
+
+      # Alternative format with per-time lookback values:
+      # times:
+      #   - time: "08:00"
+      #     lookback: "12 hours"  # Overnight: covers 20:00-08:00
+      #   - time: "14:00"
+      #     lookback: "6 hours"   # Midday: covers 08:00-14:00
+      #   - time: "20:00"
+      #     lookback: "6 hours"   # Evening: covers 14:00-20:00
 
     # Output configuration
     output:

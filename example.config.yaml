@@ -84,10 +84,11 @@ subscriptions:
       - "@world_news"
 
     schedule:
-      # How far back to look for messages
+      # Default lookback period (used when time entry doesn't specify one)
       lookback: "12 hours"
 
       # Generate reports at these times (24-hour format)
+      # Simple format - all times use the default lookback:
       times:
         - "10:00"  # Morning briefing
         - "22:00"  # Evening briefing
@@ -161,34 +162,36 @@ subscriptions:
         - "Industry News"
         - "In Brief"
 
-  # Example 3: Hourly crypto updates during trading hours
-  crypto_hourly:
-    name: "Crypto Hourly Updates"
+  # Example 3: News updates with per-time lookback values
+  # This example shows how each scheduled time can have its own lookback period
+  news_updates:
+    name: "News Updates"
 
     channels:
-      - "@crypto_news"
-      - "@blockchain_updates"
+      - "@news_channel_1"
+      - "@news_channel_2"
 
     schedule:
-      lookback: "1 hour"
+      # Default lookback (used when time entry doesn't specify one)
+      lookback: "4 hours"
 
-      # Generate reports every hour from 9 AM to 5 PM
+      # Each time can have its own lookback period
+      # Use this when gaps between runs vary (e.g., overnight is longer)
       times:
-        - "09:00"
-        - "10:00"
-        - "11:00"
-        - "12:00"
-        - "13:00"
-        - "14:00"
-        - "15:00"
-        - "16:00"
-        - "17:00"
+        - time: "08:00"
+          lookback: "12 hours"  # Overnight: covers 20:00-08:00
+        - time: "12:00"
+          lookback: "4 hours"   # Morning: covers 08:00-12:00
+        - time: "16:00"
+          lookback: "4 hours"   # Afternoon: covers 12:00-16:00
+        - time: "20:00"
+          lookback: "4 hours"   # Evening: covers 16:00-20:00
 
     output:
       language: "en"
-      newspaper_name: "Crypto Pulse"
-      tagline: "Hourly cryptocurrency market updates"
-      html_path: "~/evening-telegram/crypto/%Y-%m-%d-%H00.html"
+      newspaper_name: "News Updates"
+      tagline: "Your periodic news digest"
+      html_path: "~/evening-telegram/news/%Y-%m-%d-%H%M.html"
 
       save_html: true
       send_telegram: true
@@ -200,15 +203,14 @@ subscriptions:
         chat_id: 111222333
 
       sections:
-        - "Market Moves"
         - "Breaking News"
-        - "Analysis"
+        - "World"
+        - "Technology"
         - "In Brief"
 
     processing:
-      min_sources_for_article: 1  # Lower threshold for faster-moving news
-      max_messages: 100  # Limit for cost control
-      clustering_batch_size: 30
+      min_sources_for_article: 1
+      clustering_batch_size: 50
 
 # =============================================================================
 # GLOBAL EMAIL CONFIGURATION (optional)

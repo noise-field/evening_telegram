@@ -159,7 +159,7 @@ subscriptions:
       - "@financial_news"
 
     schedule:
-      lookback: "12 hours"
+      lookback: "12 hours"  # Default lookback
       times: ["10:00", "22:00"]  # Morning and evening
 
     output:
@@ -196,6 +196,36 @@ subscriptions:
       telegram:
         bot_token: "123456:ABC-DEF..."
         chat_id: 987654321
+```
+
+#### Per-Time Lookback Values
+
+Each scheduled time can have its own lookback period. This is useful when the time between runs varies (e.g., overnight gaps are longer):
+
+```yaml
+schedule:
+  lookback: "4 hours"  # Default lookback
+  times:
+    - time: "08:00"
+      lookback: "12 hours"  # Overnight: covers 20:00-08:00
+    - time: "12:00"
+      lookback: "4 hours"   # Morning: covers 08:00-12:00
+    - time: "16:00"
+      lookback: "4 hours"   # Afternoon: covers 12:00-16:00
+    - time: "20:00"
+      lookback: "4 hours"   # Evening: covers 16:00-20:00
+```
+
+You can mix formats - times without a `lookback` key use the default:
+```yaml
+schedule:
+  lookback: "4 hours"
+  times:
+    - time: "08:00"
+      lookback: "12 hours"  # Custom lookback for morning
+    - "12:00"               # Uses default (4 hours)
+    - "16:00"               # Uses default (4 hours)
+    - "20:00"               # Uses default (4 hours)
 ```
 
 ### Structured Output Support

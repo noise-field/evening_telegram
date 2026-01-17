@@ -28,7 +28,8 @@ class SubscriptionScheduler:
             subscription_id: Unique ID for the subscription
             subscription_name: Human-readable name
             schedule: Schedule configuration
-            callback: Async function to call when schedule triggers
+            callback: Async function to call when schedule triggers.
+                      Receives scheduled_time (str, e.g. "10:00") as keyword argument.
         """
         self.subscription_id = subscription_id
         self.subscription_name = subscription_name
@@ -37,7 +38,9 @@ class SubscriptionScheduler:
         self._task: Optional[asyncio.Task] = None
         self._stop_event = asyncio.Event()
 
-    def get_next_run_time(self, current_time: Optional[datetime] = None) -> datetime:
+    def get_next_run_time(
+        self, current_time: Optional[datetime] = None
+    ) -> tuple[datetime, Optional[str]]:
         """
         Calculate the next run time based on the schedule.
 
@@ -45,7 +48,7 @@ class SubscriptionScheduler:
             current_time: Current time (defaults to now)
 
         Returns:
-            Next scheduled run time
+            Tuple of (next scheduled run time, scheduled time string for lookback lookup)
         """
         if current_time is None:
             current_time = datetime.now().astimezone()
@@ -75,15 +78,18 @@ class SubscriptionScheduler:
                 microsecond=0,
             ) + timedelta(days=days_ahead)
 
-            return next_run
+            return next_run, self.schedule.time
 
         # Daily or multiple times per day schedule
         elif self.schedule.times:
-            times = [time.fromisoformat(t) for t in self.schedule.times]
+            time_strings = self.schedule.get_time_strings()
+            times_with_str = [
+                (time.fromisoformat(t), t) for t in time_strings
+            ]
             current_time_only = current_time.time()
 
             # Find the next time today
-            for target_time in sorted(times):
+            for target_time, time_str in sorted(times_with_str, key=lambda x: x[0]):
                 if target_time > current_time_only:
                     # Found a time later today
                     next_run = current_time.replace(
@@ -92,17 +98,17 @@ class SubscriptionScheduler:
                         second=0,
                         microsecond=0,
                     )
-                    return next_run
+                    return next_run, time_str
 
             # No time remaining today, use first time tomorrow
-            target_time = sorted(times)[0]
+            target_time, time_str = sorted(times_with_str, key=lambda x: x[0])[0]
             next_run = (current_time + timedelta(days=1)).replace(
                 hour=target_time.hour,
                 minute=target_time.minute,
                 second=0,
                 microsecond=0,
             )
-            return next_run
+            return next_run, time_str
 
         # Fallback: run every hour (shouldn't happen with valid config)
         else:
@@ -110,9 +116,9 @@ class SubscriptionScheduler:
                 "No valid schedule configuration, defaulting to hourly",
                 subscription=self.subscription_name,
             )
-            return current_time + timedelta(hours=1)
+            return current_time + timedelta(hours=1), None
 
-    def get_next_n_run_times(self, n: int = 5) -> list[datetime]:
+    def get_next_n_run_times(self, n: int = 5) -> list[tuple[datetime, Optional[str]]]:
         """
         Get the next N scheduled run times.
 
@@ -120,14 +126,14 @@ class SubscriptionScheduler:
             n: Number of run times to calculate
 
         Returns:
-            List of next N run times
+            List of tuples (run_time, scheduled_time_str) for next N runs
         """
         run_times = []
         current = datetime.now().astimezone()
 
         for _ in range(n):
-            next_run = self.get_next_run_time(current)
-            run_times.append(next_run)
+            next_run, time_str = self.get_next_run_time(current)
+            run_times.append((next_run, time_str))
             current = next_run + timedelta(seconds=1)  # Move past this run time
 
         return run_times
@@ -143,7 +149,7 @@ class SubscriptionScheduler:
         while not self._stop_event.is_set():
             try:
                 # Calculate next run time
-                next_run = self.get_next_run_time()
+                next_run, scheduled_time = self.get_next_run_time()
                 now = datetime.now().astimezone()
                 sleep_seconds = (next_run - now).total_seconds()
 
@@ -151,6 +157,7 @@ class SubscriptionScheduler:
                     "Next run scheduled",
                     subscription=self.subscription_name,
                     next_run=next_run.isoformat(),
+                    scheduled_time=scheduled_time,
                     sleep_seconds=int(sleep_seconds),
                 )
 
@@ -170,10 +177,11 @@ class SubscriptionScheduler:
                     "Executing scheduled run",
                     subscription=self.subscription_name,
                     subscription_id=self.subscription_id,
+                    scheduled_time=scheduled_time,
                 )
 
                 try:
-                    await self.callback()
+                    await self.callback(scheduled_time=scheduled_time)
                     logger.info(
                         "Scheduled run completed",
                         subscription=self.subscription_name,

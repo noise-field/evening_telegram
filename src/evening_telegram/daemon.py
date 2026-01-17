@@ -51,7 +51,10 @@ class EveningTelegramDaemon:
         logger.info("Daemon initialized")
 
     async def run_subscription(
-        self, subscription_id: str, subscription: SubscriptionConfig
+        self,
+        subscription_id: str,
+        subscription: SubscriptionConfig,
+        scheduled_time: str | None = None,
     ) -> None:
         """
         Run a single subscription (generate and deliver a report).
@@ -59,6 +62,7 @@ class EveningTelegramDaemon:
         Args:
             subscription_id: Subscription ID
             subscription: Subscription configuration
+            scheduled_time: The scheduled time string (e.g., "10:00") for lookback lookup
         """
         logger.info(
             "Running subscription",
@@ -122,6 +126,16 @@ class EveningTelegramDaemon:
                 self._telegram_client_wrapper = TelegramClientWrapper(self.config.telegram)
                 self._telegram_client = await self._telegram_client_wrapper.__aenter__()
 
+            # Get lookback for this specific scheduled time
+            lookback_override = None
+            if scheduled_time:
+                lookback_override = subscription.schedule.get_lookback_for_time(scheduled_time)
+                logger.debug(
+                    "Using lookback for scheduled time",
+                    scheduled_time=scheduled_time,
+                    lookback=lookback_override,
+                )
+
             messages = await fetch_messages(
                 client=self._telegram_client,
                 channels=subscription.channels,
@@ -129,6 +143,7 @@ class EveningTelegramDaemon:
                 processing_config=processing_config,
                 since_timestamp=since_timestamp,
                 processed_message_ids=processed_ids,
+                lookback_override=lookback_override,
             )
 
             if not messages:
@@ -405,8 +420,8 @@ class EveningTelegramDaemon:
         for sub_id, sub_config in self.config.subscriptions.items():
             # Create a callback that captures the subscription
             async def make_callback(sid: str, sconfig: SubscriptionConfig):
-                async def callback():
-                    await self.run_subscription(sid, sconfig)
+                async def callback(scheduled_time: str | None = None):
+                    await self.run_subscription(sid, sconfig, scheduled_time=scheduled_time)
 
                 return callback
 

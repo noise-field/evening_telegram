@@ -136,10 +136,11 @@ def list_subscriptions(config: Optional[Path]) -> None:
             click.echo(f"\nID: {sub_id}")
             click.echo(f"Name: {sub_config.name}")
             click.echo(f"Channels: {', '.join(sub_config.channels)}")
-            click.echo(f"Lookback: {sub_config.schedule.lookback}")
+            click.echo(f"Default Lookback: {sub_config.schedule.lookback}")
 
             if sub_config.schedule.times:
-                click.echo(f"Schedule: Daily at {', '.join(sub_config.schedule.times)}")
+                time_strings = sub_config.schedule.get_time_strings()
+                click.echo(f"Schedule: Daily at {', '.join(time_strings)}")
             elif sub_config.schedule.day_of_week is not None:
                 days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
                 day_name = days[sub_config.schedule.day_of_week]
@@ -196,10 +197,11 @@ def test_schedule(config: Optional[Path], subscription: str, count: int) -> None
 
         click.echo(f"\nSchedule Test for: {sub_config.name}")
         click.echo("=" * 60)
-        click.echo(f"Lookback: {sub_config.schedule.lookback}")
+        click.echo(f"Default Lookback: {sub_config.schedule.lookback}")
 
         if sub_config.schedule.times:
-            click.echo(f"Daily at: {', '.join(sub_config.schedule.times)}")
+            time_strings = sub_config.schedule.get_time_strings()
+            click.echo(f"Daily at: {', '.join(time_strings)}")
         elif sub_config.schedule.day_of_week is not None:
             days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
             day_name = days[sub_config.schedule.day_of_week]
@@ -208,9 +210,10 @@ def test_schedule(config: Optional[Path], subscription: str, count: int) -> None
         click.echo(f"\nNext {count} execution times:")
         click.echo("-" * 60)
 
-        for i, run_time in enumerate(next_runs, 1):
+        for i, (run_time, time_str) in enumerate(next_runs, 1):
             local_time = run_time.astimezone()
-            click.echo(f"{i}. {local_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+            lookback = sub_config.schedule.get_lookback_for_time(time_str) if time_str else sub_config.schedule.lookback
+            click.echo(f"{i}. {local_time.strftime('%Y-%m-%d %H:%M:%S %Z')} (lookback: {lookback})")
 
         click.echo("=" * 60 + "\n")
 

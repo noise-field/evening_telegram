@@ -23,13 +23,21 @@ class TelegramDeliveryConfig(BaseModel):
     chat_id: int | list[int]  # Single chat ID or list of chat IDs
 
 
+class ScheduleTimeEntry(BaseModel):
+    """A single scheduled time with optional custom lookback."""
+
+    time: str  # e.g., "10:00"
+    lookback: Optional[str] = None  # e.g., "4 hours", defaults to parent lookback
+
+
 class ScheduleConfig(BaseModel):
     """Schedule configuration for a subscription."""
 
     lookback: str = "24 hours"
 
     # For daily/multiple times per day schedules
-    times: Optional[list[str]] = None  # e.g., ["10:00", "22:00"]
+    # Can be list of strings ["10:00", "22:00"] or list of dicts with time and lookback
+    times: Optional[list[str | ScheduleTimeEntry]] = None
 
     # For weekly schedules
     day_of_week: Optional[int] = None  # 0=Monday, 6=Sunday
@@ -38,6 +46,31 @@ class ScheduleConfig(BaseModel):
     # For explicit time ranges (overrides lookback)
     from_time: Optional[str] = Field(None, alias="from")
     to_time: Optional[str] = Field(None, alias="to")
+
+    def get_time_strings(self) -> list[str]:
+        """Get list of time strings from times config."""
+        if not self.times:
+            return []
+        result = []
+        for entry in self.times:
+            if isinstance(entry, str):
+                result.append(entry)
+            else:
+                result.append(entry.time)
+        return result
+
+    def get_lookback_for_time(self, time_str: str) -> str:
+        """Get lookback value for a specific scheduled time."""
+        if not self.times:
+            return self.lookback
+        for entry in self.times:
+            if isinstance(entry, str):
+                if entry == time_str:
+                    return self.lookback
+            else:
+                if entry.time == time_str:
+                    return entry.lookback if entry.lookback else self.lookback
+        return self.lookback
 
 
 class LLMConfig(BaseModel):
