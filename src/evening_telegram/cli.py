@@ -142,7 +142,15 @@ def list_subscriptions(config: Optional[Path]) -> None:
                 time_strings = sub_config.schedule.get_time_strings()
                 click.echo(f"Schedule: Daily at {', '.join(time_strings)}")
             elif sub_config.schedule.day_of_week is not None:
-                days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                days = [
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                    "Sunday",
+                ]
                 day_name = days[sub_config.schedule.day_of_week]
                 click.echo(f"Schedule: Weekly on {day_name} at {sub_config.schedule.time}")
 
@@ -212,7 +220,11 @@ def test_schedule(config: Optional[Path], subscription: str, count: int) -> None
 
         for i, (run_time, time_str) in enumerate(next_runs, 1):
             local_time = run_time.astimezone()
-            lookback = sub_config.schedule.get_lookback_for_time(time_str) if time_str else sub_config.schedule.lookback
+            lookback = (
+                sub_config.schedule.get_lookback_for_time(time_str)
+                if time_str
+                else sub_config.schedule.lookback
+            )
             click.echo(f"{i}. {local_time.strftime('%Y-%m-%d %H:%M:%S %Z')} (lookback: {lookback})")
 
         click.echo("=" * 60 + "\n")
@@ -296,9 +308,7 @@ async def run_single_subscription(
     await daemon_instance.run_subscription(subscription_id, sub_config)
 
 
-async def run_all_subscriptions(
-    config_path: Optional[Path], dry_run: bool, verbose: int
-) -> None:
+async def run_all_subscriptions(config_path: Optional[Path], dry_run: bool, verbose: int) -> None:
     """Run all subscriptions once."""
     # Configure logging
     configure_logging(verbose)
@@ -372,7 +382,9 @@ def set_logging_level(cfg: Config, verbose: int) -> None:
         processors=[
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
-            structlog.dev.ConsoleRenderer() if log_level <= logging.INFO else structlog.processors.JSONRenderer(),
+            structlog.dev.ConsoleRenderer()
+            if log_level <= logging.INFO
+            else structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(log_level),
         context_class=dict,

@@ -147,15 +147,11 @@ class EveningTelegramDaemon:
             )
 
             if not messages:
-                logger.warning(
-                    "No new messages to process", subscription=subscription.name
-                )
+                logger.warning("No new messages to process", subscription=subscription.name)
                 await self._state_manager.complete_run(run_id, 0)
                 return
 
-            logger.info(
-                "Fetched messages", subscription=subscription.name, count=len(messages)
-            )
+            logger.info("Fetched messages", subscription=subscription.name, count=len(messages))
 
             # Initialize LLM client
             token_tracker = TokenTracker()
@@ -198,14 +194,10 @@ class EveningTelegramDaemon:
 
             # Filter clusters by minimum sources
             significant_clusters = [
-                c
-                for c in clusters
-                if c.source_count >= processing_config.min_sources_for_article
+                c for c in clusters if c.source_count >= processing_config.min_sources_for_article
             ]
             brief_clusters = [
-                c
-                for c in clusters
-                if c.source_count < processing_config.min_sources_for_article
+                c for c in clusters if c.source_count < processing_config.min_sources_for_article
             ]
 
             logger.info(
@@ -302,15 +294,14 @@ class EveningTelegramDaemon:
             # Generate HTML
             if subscription.output.save_html:
                 logger.info("Generating HTML", subscription=subscription.name)
-                channel_info = [
-                    {"username": ch, "title": ch} for ch in subscription.channels
-                ]
+                channel_info = [{"username": ch, "title": ch} for ch in subscription.channels]
                 html_path_str = generate_html(
-                    newspaper, subscription.output.html_path, channel_info, subscription.output.timezone
+                    newspaper,
+                    subscription.output.html_path,
+                    channel_info,
+                    subscription.output.timezone,
                 )
-                logger.info(
-                    "Saved HTML", subscription=subscription.name, path=html_path_str
-                )
+                logger.info("Saved HTML", subscription=subscription.name, path=html_path_str)
 
                 # Read HTML content for email
                 with open(html_path_str, "r", encoding="utf-8") as f:
@@ -361,8 +352,7 @@ class EveningTelegramDaemon:
                     if not html_content:
                         # Generate HTML for email if not already generated
                         channel_info = [
-                            {"username": ch, "title": ch}
-                            for ch in subscription.channels
+                            {"username": ch, "title": ch} for ch in subscription.channels
                         ]
                         from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -472,6 +462,7 @@ class EveningTelegramDaemon:
         Args:
             loop: The asyncio event loop to attach signal handlers to
         """
+
         def signal_handler():
             logger.info("Received shutdown signal, stopping daemon")
             self.stop()

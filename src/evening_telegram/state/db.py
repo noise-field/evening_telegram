@@ -257,4 +257,6 @@ class StateManager:
             )
             await db.commit()
 
-        logger.debug("Marked messages as processed", count=len(message_ids), subscription_id=subscription_id)
+        logger.debug(
+            "Marked messages as processed", count=len(message_ids), subscription_id=subscription_id
+        )

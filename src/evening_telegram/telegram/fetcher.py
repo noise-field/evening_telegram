@@ -42,7 +42,9 @@ async def fetch_messages(
     if processed_message_ids is None:
         processed_message_ids = set()
 
-    start_time, end_time = _determine_time_window(schedule_config, since_timestamp, lookback_override)
+    start_time, end_time = _determine_time_window(
+        schedule_config, since_timestamp, lookback_override
+    )
     logger.info("Fetching messages", start_time=start_time, end_time=end_time)
 
     all_messages: list[SourceMessage] = []
@@ -58,9 +60,13 @@ async def fetch_messages(
                 processed_message_ids,
             )
             all_messages.extend(messages)
-            logger.info("Fetched messages from channel", count=len(messages), channel=channel_identifier)
+            logger.info(
+                "Fetched messages from channel", count=len(messages), channel=channel_identifier
+            )
         except Exception as e:
-            logger.warning("Failed to fetch messages from channel", channel=channel_identifier, error=str(e))
+            logger.warning(
+                "Failed to fetch messages from channel", channel=channel_identifier, error=str(e)
+            )
             continue
 
     # Apply max_messages limit if set
@@ -117,7 +123,9 @@ def _determine_time_window(
             delta = timedelta(hours=24)
 
         start_time = end_time - delta
-        logger.debug("Calculated time window", start_time=start_time, end_time=end_time, delta=str(delta))
+        logger.debug(
+            "Calculated time window", start_time=start_time, end_time=end_time, delta=str(delta)
+        )
 
     return start_time, end_time
 
@@ -167,14 +175,22 @@ async def _fetch_channel_messages(
 
         # When iterating from newest to oldest (default), stop when we hit messages before start_time
         if message.date < start_time:
-            logger.debug("Message before start_time, stopping iteration",
-                        message_id=message.id, message_date=message.date, start_time=start_time)
+            logger.debug(
+                "Message before start_time, stopping iteration",
+                message_id=message.id,
+                message_date=message.date,
+                start_time=start_time,
+            )
             break
 
         # Skip messages after end_time (shouldn't happen but be safe)
         if message.date > end_time:
-            logger.debug("Message after end_time, skipping",
-                        message_id=message.id, message_date=message.date, end_time=end_time)
+            logger.debug(
+                "Message after end_time, skipping",
+                message_id=message.id,
+                message_date=message.date,
+                end_time=end_time,
+            )
             messages_skipped_time += 1
             continue
 
@@ -208,14 +224,16 @@ async def _fetch_channel_messages(
         if len(messages) <= 5:
             logger.debug("Added message to results", message_id=message.id, total=len(messages))
 
-    logger.info("Channel stats",
-                channel=channel_identifier,
-                checked=messages_checked,
-                added=len(messages),
-                skipped_processed=messages_skipped_already_processed,
-                skipped_no_text=messages_skipped_no_text,
-                skipped_external=messages_skipped_external_forward,
-                skipped_time=messages_skipped_time)
+    logger.info(
+        "Channel stats",
+        channel=channel_identifier,
+        checked=messages_checked,
+        added=len(messages),
+        skipped_processed=messages_skipped_already_processed,
+        skipped_no_text=messages_skipped_no_text,
+        skipped_external=messages_skipped_external_forward,
+        skipped_time=messages_skipped_time,
+    )
 
     return messages
 

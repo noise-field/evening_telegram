@@ -20,7 +20,9 @@ def _to_timezone(dt: datetime, tz: str) -> datetime:
         return dt.astimezone(ZoneInfo(tz))
 
 
-def generate_html(newspaper: Newspaper, output_path: Path, channels: list[dict[str, str]], timezone: str = "local") -> str:
+def generate_html(
+    newspaper: Newspaper, output_path: Path, channels: list[dict[str, str]], timezone: str = "local"
+) -> str:
     """
     Generate HTML newspaper from data.
 
@@ -41,8 +43,8 @@ def generate_html(newspaper: Newspaper, output_path: Path, channels: list[dict[s
     )
 
     # Add custom filters
-    env.filters['to_tz'] = lambda dt: _to_timezone(dt, timezone)
-    env.filters['strftime'] = lambda dt, fmt: dt.strftime(fmt)
+    env.filters["to_tz"] = lambda dt: _to_timezone(dt, timezone)
+    env.filters["strftime"] = lambda dt, fmt: dt.strftime(fmt)
 
     template = env.get_template("newspaper.html")
 

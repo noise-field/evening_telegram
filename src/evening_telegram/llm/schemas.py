@@ -8,7 +8,9 @@ class TopicSchema(BaseModel):
 
     topic_id: str = Field(description="Unique identifier for this topic")
     summary: str = Field(description="Brief description of this topic/story")
-    message_ids: list[int] = Field(description="List of message IDs (1-indexed) belonging to this topic")
+    message_ids: list[int] = Field(
+        description="List of message IDs (1-indexed) belonging to this topic"
+    )
     article_type: str = Field(description="Type of article: HARD_NEWS, OPINION, BRIEF, or FEATURE")
     section: str = Field(description="Newspaper section for this topic")
 
@@ -23,7 +25,9 @@ class MergeInstruction(BaseModel):
     """Schema for a single merge instruction."""
 
     keep: str = Field(description="Cluster ID to keep")
-    merge_into_it: list[str] = Field(description="List of cluster IDs to merge into the kept cluster")
+    merge_into_it: list[str] = Field(
+        description="List of cluster IDs to merge into the kept cluster"
+    )
     combined_summary: str = Field(description="Updated summary for the merged topic")
 
 

@@ -32,8 +32,7 @@ def format_clustering_prompt(
     formatted_messages = []
     for i, msg in enumerate(messages, 1):
         formatted_messages.append(
-            f"[{i}] {msg.channel_title}: {msg.text[:500]}"
-            + ("..." if len(msg.text) > 500 else "")
+            f"[{i}] {msg.channel_title}: {msg.text[:500]}" + ("..." if len(msg.text) > 500 else "")
         )
 
     messages_text = "\n\n".join(formatted_messages)
@@ -50,7 +49,7 @@ Your task is to:
    - HARD_NEWS: Factual reporting of events
    - OPINION: Commentary, editorials, or opinion pieces
    - BRIEF: Minor items not warranting a full article
-4. CATEGORIZE: Suggest a newspaper section for each topic from: {', '.join(section_list)}
+4. CATEGORIZE: Suggest a newspaper section for each topic from: {", ".join(section_list)}
 
 Messages from the SAME channel reporting on the same story are updates, not duplicates—keep them together in one topic.
 
@@ -256,8 +255,7 @@ def format_content_filter_prompt(messages: list[SourceMessage]) -> list[dict[str
     formatted_messages = []
     for i, msg in enumerate(messages, 1):
         formatted_messages.append(
-            f"[{i}] {msg.channel_title}: {msg.text[:500]}"
-            + ("..." if len(msg.text) > 500 else "")
+            f"[{i}] {msg.channel_title}: {msg.text[:500]}" + ("..." if len(msg.text) > 500 else "")
         )
 
     messages_text = "\n\n".join(formatted_messages)

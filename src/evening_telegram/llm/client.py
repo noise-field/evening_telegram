@@ -31,7 +31,7 @@ def _strip_thinking_tags(content: str) -> str:
     """
     if "<think>" in content and "</think>" in content:
         # Remove everything from <think> to </think> inclusive
-        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
     return content.strip()
 
 
@@ -138,9 +138,9 @@ class LLMClient:
         try:
             return json.loads(content)
         except json.JSONDecodeError as e:
-            logger.error("Failed to parse JSON response",
-                        content_preview=content[:200],
-                        error=str(e))
+            logger.error(
+                "Failed to parse JSON response", content_preview=content[:200], error=str(e)
+            )
             raise ValueError(f"Invalid JSON response from LLM: {e}")
 
     def _parse_and_validate_json(
@@ -179,14 +179,16 @@ class LLMClient:
             json_response = json.loads(content)
             return response_format.model_validate(json_response)
         except json.JSONDecodeError as e:
-            logger.error("Failed to parse JSON response",
-                        content_preview=content[:200],
-                        error=str(e))
+            logger.error(
+                "Failed to parse JSON response", content_preview=content[:200], error=str(e)
+            )
             raise ValueError(f"Invalid JSON response from LLM: {e}")
         except Exception as e:
-            logger.error("Failed to validate response against schema",
-                        error=str(e),
-                        response_preview=content[:200])
+            logger.error(
+                "Failed to validate response against schema",
+                error=str(e),
+                response_preview=content[:200],
+            )
             raise ValueError(f"Response does not match expected schema: {e}")
 
     async def chat_completion_structured(
@@ -238,13 +240,17 @@ class LLMClient:
                     if not content:
                         raise ValueError("Empty parsed response from LLM")
 
-                    logger.warning("Structured output parse returned None, falling back to manual parsing")
+                    logger.warning(
+                        "Structured output parse returned None, falling back to manual parsing"
+                    )
                     return self._parse_and_validate_json(content, response_format)
 
                 return parsed
 
             except Exception as e:
-                logger.error("Structured output API error", error=str(e), error_type=type(e).__name__)
+                logger.error(
+                    "Structured output API error", error=str(e), error_type=type(e).__name__
+                )
                 raise
         else:
             # Fallback: Use regular completion and parse manually

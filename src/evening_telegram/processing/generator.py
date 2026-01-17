@@ -43,7 +43,7 @@ def _make_sources_clickable(body: str, sources: list[SourceMessage]) -> str:
         # Escape special regex characters in channel title
         escaped_title = re.escape(channel_title)
         # Pattern to match [Source: Channel Name]
-        pattern = rf'\[Source:\s*{escaped_title}\]'
+        pattern = rf"\[Source:\s*{escaped_title}\]"
         # Replacement: clickable link styled similarly to the existing source links
         replacement = f'<a href="{message_url}" target="_blank" rel="noopener" style="color: #326891; text-decoration: none; border-bottom: 1px dotted #326891;">[Source: {channel_title}]</a>'
         modified_body = re.sub(pattern, replacement, modified_body, flags=re.IGNORECASE)
@@ -69,9 +69,9 @@ async def generate_article(
     Returns:
         Generated Article or None if generation fails
     """
-    logger.info("Generating article",
-                article_type=cluster.suggested_type.value,
-                topic=cluster.topic_summary)
+    logger.info(
+        "Generating article", article_type=cluster.suggested_type.value, topic=cluster.topic_summary
+    )
 
     prompt_messages = format_article_generation_prompt(
         cluster_messages=cluster.messages,
@@ -101,9 +101,7 @@ async def generate_article(
             body = response_dict.get("body", "")
             stance_summary = response_dict.get("stance_summary")
     except Exception as e:
-        logger.error("Failed to generate article",
-                    cluster_id=cluster.cluster_id,
-                    error=str(e))
+        logger.error("Failed to generate article", cluster_id=cluster.cluster_id, error=str(e))
         return None
 
     if not body:

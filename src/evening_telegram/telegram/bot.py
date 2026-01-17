@@ -84,8 +84,17 @@ async def send_telegram_report(
                         filename=filename,
                         caption="📖 Full edition",
                     )
-                logger.info("Successfully sent HTML file to Telegram", chat_id=target_chat_id, filename=filename)
+                logger.info(
+                    "Successfully sent HTML file to Telegram",
+                    chat_id=target_chat_id,
+                    filename=filename,
+                )
 
         except Exception as e:
-            logger.error("Failed to send Telegram report to chat", chat_id=target_chat_id, error=str(e), error_type=type(e).__name__)
+            logger.error(
+                "Failed to send Telegram report to chat",
+                chat_id=target_chat_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             # Continue to next chat ID instead of raising

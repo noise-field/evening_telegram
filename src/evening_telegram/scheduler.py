@@ -83,9 +83,7 @@ class SubscriptionScheduler:
         # Daily or multiple times per day schedule
         elif self.schedule.times:
             time_strings = self.schedule.get_time_strings()
-            times_with_str = [
-                (time.fromisoformat(t), t) for t in time_strings
-            ]
+            times_with_str = [(time.fromisoformat(t), t) for t in time_strings]
             current_time_only = current_time.time()
 
             # Find the next time today
@@ -163,9 +161,7 @@ class SubscriptionScheduler:
 
                 # Wait until the next run time or stop event
                 try:
-                    await asyncio.wait_for(
-                        self._stop_event.wait(), timeout=sleep_seconds
-                    )
+                    await asyncio.wait_for(self._stop_event.wait(), timeout=sleep_seconds)
                     # Stop event was set, exit the loop
                     break
                 except asyncio.TimeoutError:

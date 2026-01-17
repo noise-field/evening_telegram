@@ -23,7 +23,7 @@ def _process_env_defaults(data: Any) -> Any:
     elif isinstance(data, str):
         # Check if this is an unresolved env var with default: $VAR:default or $VAR
         # EnvYAML leaves these as literal strings when unset
-        match = re.match(r'^\$([A-Z_][A-Z0-9_]*):(.+)$', data)
+        match = re.match(r"^\$([A-Z_][A-Z0-9_]*):(.+)$", data)
         if match:
             # Return the default value (after the colon)
             return match.group(2)
@@ -32,7 +32,9 @@ def _process_env_defaults(data: Any) -> Any:
         return data
 
 
-def load_config(config_path: Optional[Path] = None, overrides: Optional[dict[str, Any]] = None) -> Config:
+def load_config(
+    config_path: Optional[Path] = None, overrides: Optional[dict[str, Any]] = None
+) -> Config:
     """
     Load configuration from YAML file with environment variable support.
 
@@ -60,7 +62,8 @@ def load_config(config_path: Optional[Path] = None, overrides: Optional[dict[str
     # EnvYAML acts as a dict-like object, convert to plain dict
     # excluding environment variables by only taking keys from the YAML
     import yaml
-    with open(config_path, 'r') as f:
+
+    with open(config_path, "r") as f:
         yaml_keys = set(yaml.safe_load(f).keys())
 
     config_data = {k: env_config[k] for k in yaml_keys if k in env_config}
