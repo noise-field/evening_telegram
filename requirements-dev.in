@@ -1,0 +1,8 @@
+# The Evening Telegram - Development Dependencies
+# Compile with: uv pip compile requirements-dev.in -o requirements-dev.txt
+
+# Linting and formatting
+ruff>=0.1
+
+# Pre-commit hooks
+pre-commit>=3.0
